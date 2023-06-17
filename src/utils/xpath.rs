@@ -63,9 +63,16 @@ impl fmt::Debug for Node {
 }
 
 impl Node {
-    pub fn xpath_text(&self, xpath: &str) -> Result<Vec<String>> {
+    pub fn xpath_texts(&self, xpath: &str) -> Result<Vec<String>> {
         self.xpath(xpath)?
             .into_text()
+            .ok_or_else(|| XpathError::ElementNotFound(xpath.to_owned()))
+    }
+
+    pub fn xpath_text(&self, xpath: &str) -> Result<String> {
+        self.xpath_texts(xpath)?
+            .into_iter()
+            .next()
             .ok_or_else(|| XpathError::ElementNotFound(xpath.to_owned()))
     }
 
@@ -171,13 +178,15 @@ mod tests {
         </html>
         "#;
         let node = Node::from_html(html).unwrap();
-        println!("{:?}", node.xpath(r#"//table"#));
-        println!("{:?}", node.xpath(r#"//table/@class"#));
-        println!("{:?}", node.xpath(r#"//table//tr"#));
-        println!("{:?}", node.xpath(r#"//table//th/text()"#));
+        assert!(node.xpath(r#"//table"#).is_ok());
+        assert_eq!(node.xpath_texts(r#"//table/@class"#), Ok(vec!["lol"]));
+        assert_eq!(
+            node.xpath(r#"//table//th/text()"#),
+            Ok(vec!["Firstname", "Lastname", "Age"])
+        );
 
         for td in node.xpath("//td").unwrap().into_element().unwrap() {
-            println!("{:?}", td.xpath(".//text()"));
+            assert!(td.xpath_texts(".//text()").is_ok());
         }
     }
 }

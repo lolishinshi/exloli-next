@@ -1,6 +1,6 @@
-use chrono::{NaiveDate, NaiveDateTime, Utc};
+use chrono::{NaiveDateTime, Utc};
 use sqlx::sqlite::SqliteQueryResult;
-use sqlx::{Error, Row};
+use sqlx::Row;
 
 use super::db::DB;
 
@@ -83,7 +83,7 @@ impl Vote {
         .bind(Utc::now().naive_utc())
         .execute(&*DB)
         .await?;
-        Poll::update_score(poll_id);
+        Poll::update_score(poll_id).await?;
         Ok(result)
     }
 }

@@ -1,6 +1,6 @@
-use chrono::{NaiveDate, NaiveDateTime, Utc};
+use chrono::{NaiveDate, Utc};
 use sqlx::sqlite::SqliteQueryResult;
-use sqlx::{Result, SqlitePool};
+use sqlx::Result;
 
 use super::db::DB;
 
