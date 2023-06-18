@@ -1,5 +1,6 @@
 use sqlx::sqlite::SqliteQueryResult;
 use sqlx::Result;
+use tracing::Level;
 
 use super::db::DB;
 
@@ -25,6 +26,7 @@ pub struct ImageEntity {
 
 impl ImageEntity {
     /// 创建一条记录
+    #[tracing::instrument(level = Level::TRACE)]
     pub async fn create(hash: &str, url: &str) -> Result<Self> {
         sqlx::query_as("INSERT INTO image (hash, url) VALUES (?, ?) RETURNING *")
             .bind(hash)
@@ -34,6 +36,7 @@ impl ImageEntity {
     }
 
     /// 根据图片 hash 获取一张图片
+    #[tracing::instrument(level = Level::TRACE)]
     pub async fn get_by_hash(hash: &str) -> Result<Option<ImageEntity>> {
         sqlx::query_as("SELECT * FROM image WHERE hash = ?")
             .bind(hash)
@@ -46,6 +49,7 @@ impl ImageEntity {
     /// 画廊要求：
     /// - 分数大于 80
     /// - 作者只有 1 位
+    #[tracing::instrument(level = Level::TRACE)]
     pub async fn get_challenge() -> Result<Option<Self>> {
         sqlx::query_as(
             r#"SELECT * FROM image
@@ -64,6 +68,7 @@ impl ImageEntity {
 
 impl PageEntity {
     /// 创建一条记录
+    #[tracing::instrument(level = Level::TRACE)]
     pub async fn create(gallery_id: i32, page: i32, image_id: i32) -> Result<SqliteQueryResult> {
         sqlx::query("INSERT INTO page (gallery_id, page, image_id) VALUES (?, ?, ?)")
             .bind(gallery_id)

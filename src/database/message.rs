@@ -1,6 +1,7 @@
 use chrono::{NaiveDate, Utc};
 use sqlx::sqlite::SqliteQueryResult;
 use sqlx::Result;
+use tracing::Level;
 
 use super::db::DB;
 
@@ -17,6 +18,7 @@ pub struct MessageEntity {
 }
 
 impl MessageEntity {
+    #[tracing::instrument(level = Level::TRACE)]
     pub async fn create(
         id: i32,
         gallery_id: i32,
@@ -35,6 +37,7 @@ impl MessageEntity {
             .await
     }
 
+    #[tracing::instrument(level = Level::TRACE)]
     pub async fn get(id: i32) -> Result<Option<MessageEntity>> {
         sqlx::query_as("SELECT * FROM publish WHERE id = ?")
             .bind(id)
@@ -42,6 +45,7 @@ impl MessageEntity {
             .await
     }
 
+    #[tracing::instrument(level = Level::TRACE)]
     pub async fn update_telegraph(id: i32, telegraph: &str) -> Result<SqliteQueryResult> {
         sqlx::query("UPDATE publish SET telegraph = ? WHERE id = ?")
             .bind(telegraph)

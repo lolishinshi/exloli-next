@@ -1,35 +1,62 @@
-#[derive(Debug)]
-pub struct SearchResultGallery {
-    /// 画廊标题
-    pub title: String,
-    /// 画廊地址
-    pub url: String,
-}
+use std::str::FromStr;
 
-pub trait GalleryInfo {
-    /// 画廊地址
-    fn url(&self) -> &str;
+use super::error::EhError;
+
+#[derive(Debug, Clone)]
+pub struct EhGalleryUrl(String);
+
+impl EhGalleryUrl {
+    /// 画廊 URL
+    pub fn url(&self) -> &str {
+        &self.0
+    }
 
     /// 画廊 ID
-    fn id(&self) -> i32 {
+    pub fn id(&self) -> i32 {
         // 地址格式为 https://e-hentai.org/g/2549143/16b1b7bab0/
-        self.url().split('/').nth(4).unwrap().parse().unwrap()
+        self.0.split('/').nth(4).unwrap().parse().unwrap()
     }
 
     /// 画廊 token
-    fn token(&self) -> &str {
-        self.url().split('/').nth(5).unwrap()
+    pub fn token(&self) -> &str {
+        self.0.split('/').nth(5).unwrap()
     }
 }
 
-impl GalleryInfo for SearchResultGallery {
-    fn url(&self) -> &str {
-        &self.url
+impl FromStr for EhGalleryUrl {
+    type Err = EhError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.starts_with("https://exhentai.org/g/") {
+            Ok(Self(s.to_owned()))
+        } else {
+            Err(EhError::InvalidURL(s.to_owned()))
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct EhPageUrl(String);
+
+impl EhPageUrl {
+    pub fn url(&self) -> &str {
+        &self.0
+    }
+
+    // NOTE: 由于此处的输入只会来源于内部，所以跳过了检查
+    // 地址格式为 https://exhentai.org/s/03af734602/1932743-1
+    pub fn new(url: String) -> Self {
+        Self(url)
+    }
+
+    /// 页面哈希，实际上就是图片哈希的前十位
+    pub fn hash(&self) -> &str {
+        self.0.split('/').nth(4).unwrap()
     }
 }
 
 #[derive(Debug)]
-pub struct EHGallery {
+pub struct EhGallery {
     /// 画廊标题
     pub title: String,
     /// 画廊日文标题
@@ -39,5 +66,5 @@ pub struct EHGallery {
     /// 父画廊地址
     pub parent: Option<String>,
     /// 画廊页面
-    pub pages: Vec<String>,
+    pub pages: Vec<EhPageUrl>,
 }

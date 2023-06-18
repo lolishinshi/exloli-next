@@ -1,6 +1,7 @@
 use chrono::{NaiveDateTime, Utc};
 use sqlx::sqlite::SqliteQueryResult;
 use sqlx::Row;
+use tracing::Level;
 
 use super::db::DB;
 
@@ -27,6 +28,7 @@ pub struct VoteEntity {
 }
 
 impl PollEntity {
+    #[tracing::instrument(level = Level::TRACE)]
     pub async fn create(id: i64, gallery_id: i32) -> sqlx::Result<SqliteQueryResult> {
         sqlx::query("INSERT INTO poll (id, gallery_id, score) VALUES (?, ?, 0.0)")
             .bind(id)
@@ -35,6 +37,7 @@ impl PollEntity {
             .await
     }
 
+    #[tracing::instrument(level = Level::TRACE)]
     pub async fn get_by_gallery_id(gallery_id: i32) -> sqlx::Result<SqliteQueryResult> {
         sqlx::query("SELECT * FROM poll WHERE gallery_id = ?")
             .bind(gallery_id)
@@ -42,6 +45,7 @@ impl PollEntity {
             .await
     }
 
+    #[tracing::instrument(level = Level::TRACE)]
     pub async fn get_vote(id: i64) -> sqlx::Result<[i32; 5]> {
         let mut result = [0; 5];
         let rows = sqlx::query(
@@ -56,6 +60,7 @@ impl PollEntity {
         Ok(result)
     }
 
+    #[tracing::instrument(level = Level::TRACE)]
     async fn update_score(id: i64) -> sqlx::Result<f32> {
         let vote = Self::get_vote(id).await?;
         let score = wilson_score(&vote);
@@ -69,6 +74,7 @@ impl PollEntity {
 }
 
 impl VoteEntity {
+    #[tracing::instrument(level = Level::TRACE)]
     pub async fn create(
         user_id: i32,
         poll_id: i64,

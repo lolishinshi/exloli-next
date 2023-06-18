@@ -9,7 +9,7 @@ pub struct Config {
     pub log_level: String,
     /// 同时下载线程数量
     pub threads_num: usize,
-    /// 定时爬取间隔
+    /// 定时爬取间隔，单位分钟
     pub interval: u64,
     /// Sqlite 数据库位置
     pub database_url: String,

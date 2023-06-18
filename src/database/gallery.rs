@@ -6,6 +6,7 @@ use sqlx::error::BoxDynError;
 use sqlx::prelude::*;
 use sqlx::sqlite::SqliteQueryResult;
 use sqlx::{Database, Result, Sqlite};
+use tracing::Level;
 
 use super::db::DB;
 
@@ -33,6 +34,7 @@ pub struct GalleryEntity {
 
 impl GalleryEntity {
     /// 创建一条记录
+    #[tracing::instrument(level = Level::TRACE)]
     pub async fn create(
         id: i32,
         token: &str,
@@ -54,6 +56,7 @@ impl GalleryEntity {
     }
 
     /// 根据 ID 获取一条记录
+    #[tracing::instrument(level = Level::TRACE)]
     pub async fn get(id: i32) -> Result<Option<GalleryEntity>> {
         sqlx::query_as("SELECT * FROM gallery WHERE id = ?")
             .bind(id)
@@ -62,6 +65,7 @@ impl GalleryEntity {
     }
 
     /// 根据 ID 更新 tag
+    #[tracing::instrument(level = Level::TRACE)]
     pub async fn update_tags(id: i32, tags: &[(String, Vec<String>)]) -> Result<SqliteQueryResult> {
         sqlx::query("UPDATE gallery SET tags = ? WHERE id = ?")
             .bind(serde_json::to_string(tags).unwrap())

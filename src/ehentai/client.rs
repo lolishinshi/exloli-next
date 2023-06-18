@@ -5,7 +5,7 @@ use futures::prelude::*;
 use reqwest::header::*;
 use reqwest::Client;
 use serde::Serialize;
-use tracing::error;
+use tracing::{debug, error};
 
 use super::error::*;
 use super::types::*;
@@ -27,10 +27,10 @@ macro_rules! send {
     };
 }
 
-#[derive(Debug)]
-pub struct EHClient(Client);
+#[derive(Debug, Clone)]
+pub struct EhClient(Client);
 
-impl EHClient {
+impl EhClient {
     #[tracing::instrument]
     pub async fn new(cookie: &str) -> Result<Self> {
         let headers = headers! {
@@ -65,7 +65,7 @@ impl EHClient {
         &self,
         params: &T,
         next: i32,
-    ) -> Result<Vec<SearchResultGallery>> {
+    ) -> Result<Vec<EhGalleryUrl>> {
         let resp = send!(self
             .0
             .get("https://exhentai.org")
@@ -79,7 +79,8 @@ impl EHClient {
         for gl in gl_list {
             let title = gl.xpath_text(r#".//td[@class="gl3c glname"]/a/div/text()"#)?;
             let url = gl.xpath_text(r#".//td[@class="gl3c glname"]/a/@href"#)?;
-            ret.push(SearchResultGallery { title, url })
+            debug!(url, title);
+            ret.push(url.parse()?)
         }
 
         Ok(ret)
@@ -91,7 +92,7 @@ impl EHClient {
         &'a self,
         params: &'a T,
         page: usize,
-    ) -> impl Stream<Item = SearchResultGallery> + 'a {
+    ) -> impl Stream<Item = EhGalleryUrl> + 'a {
         stream::unfold(0, move |next| async move {
             match self.search_skip(params, next).await {
                 Ok(gls) => {
@@ -109,7 +110,7 @@ impl EHClient {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn get_gallery(&self, url: &str) -> Result<EHGallery> {
+    pub async fn get_gallery(&self, url: &str) -> Result<EhGallery> {
         let resp = send!(self.0.get(url))?;
         let mut html = Node::from_html(&resp.text().await?)?;
 
@@ -137,12 +138,15 @@ impl EHClient {
         // 每一页的 URL
         let mut pages = html.xpath_texts(r#"//div[@id="gdt"]//a/@href"#)?;
         while let Ok(next_page) = html.xpath_text(r#"//table[@class="ptt"]//td[last()]/a/@href"#) {
+            debug!(next_page);
             let resp = send!(self.0.get(&next_page))?;
             html = Node::from_html(&resp.text().await?)?;
             pages.extend(html.xpath_texts(r#"//div[@id="gdt"]//a/@href"#)?);
         }
 
-        Ok(EHGallery {
+        let pages = pages.into_iter().map(EhPageUrl::new).collect();
+
+        Ok(EhGallery {
             title,
             title_jp,
             parent,
@@ -153,10 +157,18 @@ impl EHClient {
 
     /// 获取画廊的某一页的图片实际地址
     #[tracing::instrument(skip(self))]
-    pub async fn get_page(&self, page: &str) -> Result<String> {
-        let resp = send!(self.0.get(page))?;
+    pub async fn get_image_url(&self, page: &EhPageUrl) -> Result<String> {
+        let resp = send!(self.0.get(page.url()))?;
         let html = Node::from_html(&resp.text().await?)?;
         let img = html.xpath_text(r#"//img[@id="img"]/@src"#)?;
         Ok(img)
+    }
+
+    /// 获取画廊的某一页的图片的字节流
+    #[tracing::instrument(skip(self))]
+    pub async fn get_image_bytes(&self, page: &EhPageUrl) -> Result<Vec<u8>> {
+        let url = self.get_image_url(page).await?;
+        let resp = send!(self.0.get(url))?;
+        Ok(resp.bytes().await?.to_vec())
     }
 }

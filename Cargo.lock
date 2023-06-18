@@ -220,15 +220,16 @@ dependencies = [
 
 [[package]]
 name = "cookie_store"
-version = "0.16.1"
+version = "0.16.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e4b6aa369f41f5faa04bb80c9b1f4216ea81646ed6124d76ba5c49a7aafd9cd"
+checksum = "d606d0fba62e13cf04db20536c05cb7f13673c161cb47a47a82b9b9e7d3f1daa"
 dependencies = [
  "cookie",
  "idna 0.2.3",
  "log",
  "publicsuffix",
  "serde",
+ "serde_derive",
  "serde_json",
  "time 0.3.22",
  "url",
@@ -459,7 +460,7 @@ dependencies = [
  "dashmap",
  "futures",
  "indexmap",
- "libxml 0.3.2",
+ "libxml",
  "once_cell",
  "reqwest",
  "serde",
@@ -950,17 +951,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "898745e570c7d0453cc1fbc4a701eb6c662ed54e8fec8b7d14be137ebeeb9d14"
 dependencies = [
  "cc",
- "pkg-config",
- "vcpkg",
-]
-
-[[package]]
-name = "libxml"
-version = "0.2.16"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0f71e821b82fe8ad377edf23ed7a66328df62a49be11377f21230e3955ea1f7"
-dependencies = [
- "libc",
  "pkg-config",
  "vcpkg",
 ]
@@ -1736,14 +1726,16 @@ checksum = "20f34339676cdcab560c9a82300c4c2581f68b9369aedf0fae86f2ff9565ff3e"
 
 [[package]]
 name = "telegraph-rs"
-version = "0.5.0"
-source = "git+https://github.com/Aloxaf/telegraph-rs#336a3ee4ca37e13312e0c5bdba311e694e956466"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b58df2cd26c5a8826a3cafae086b5ec5b6930700e5a51061447616425e3e50a1"
 dependencies = [
- "libxml 0.2.16",
+ "libxml",
  "mime_guess",
  "reqwest",
  "serde",
  "serde_json",
+ "thiserror",
 ]
 
 [[package]]

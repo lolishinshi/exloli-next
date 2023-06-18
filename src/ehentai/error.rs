@@ -10,4 +10,6 @@ pub enum EhError {
     XPathError(#[from] xpath::XpathError),
     #[error("reqwest error: {0}")]
     ReqwestError(#[from] reqwest::Error),
+    #[error("invalid exhentai URL: {0}")]
+    InvalidURL(String),
 }
