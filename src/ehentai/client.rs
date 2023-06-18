@@ -1,8 +1,10 @@
+use std::fmt::Debug;
 use std::time::Duration;
 
 use futures::prelude::*;
 use reqwest::header::*;
 use reqwest::Client;
+use serde::Serialize;
 use tracing::error;
 
 use super::error::*;
@@ -59,9 +61,9 @@ impl EHClient {
 
     /// 使用指定参数查询符合要求的画廊列表
     #[tracing::instrument(skip(self))]
-    pub async fn search_skip(
+    pub async fn search_skip<T: Serialize + ?Sized + Debug>(
         &self,
-        params: &[(&str, &str)],
+        params: &T,
         next: i32,
     ) -> Result<Vec<SearchResultGallery>> {
         let resp = send!(self
@@ -83,11 +85,12 @@ impl EHClient {
         Ok(ret)
     }
 
-    /// 搜索本子，返回一个异步迭代器
+    /// 搜索前 N 页的本子，返回一个异步迭代器
     #[tracing::instrument(skip(self))]
-    pub async fn search_iter<'a>(
+    pub fn search_iter<'a, T: Serialize + ?Sized + Debug>(
         &'a self,
-        params: &'a [(&'a str, &'a str)],
+        params: &'a T,
+        page: usize,
     ) -> impl Stream<Item = SearchResultGallery> + 'a {
         stream::unfold(0, move |next| async move {
             match self.search_skip(params, next).await {
@@ -101,6 +104,7 @@ impl EHClient {
                 }
             }
         })
+        .take(page)
         .flatten()
     }
 

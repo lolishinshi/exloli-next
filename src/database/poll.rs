@@ -5,7 +5,7 @@ use sqlx::Row;
 use super::db::DB;
 
 #[derive(sqlx::FromRow, Debug)]
-pub struct Poll {
+pub struct PollEntity {
     /// 投票 ID
     pub id: i64,
     /// 画廊 ID
@@ -15,7 +15,7 @@ pub struct Poll {
 }
 
 #[derive(sqlx::FromRow, Debug)]
-pub struct Vote {
+pub struct VoteEntity {
     /// 用户 ID
     pub user_id: i32,
     /// 投票 ID
@@ -26,7 +26,7 @@ pub struct Vote {
     pub vote_time: NaiveDateTime,
 }
 
-impl Poll {
+impl PollEntity {
     pub async fn create(id: i64, gallery_id: i32) -> sqlx::Result<SqliteQueryResult> {
         sqlx::query("INSERT INTO poll (id, gallery_id, score) VALUES (?, ?, 0.0)")
             .bind(id)
@@ -68,7 +68,7 @@ impl Poll {
     }
 }
 
-impl Vote {
+impl VoteEntity {
     pub async fn create(
         user_id: i32,
         poll_id: i64,
@@ -83,7 +83,7 @@ impl Vote {
         .bind(Utc::now().naive_utc())
         .execute(&*DB)
         .await?;
-        Poll::update_score(poll_id).await?;
+        PollEntity::update_score(poll_id).await?;
         Ok(result)
     }
 }

@@ -5,7 +5,7 @@ use sqlx::Result;
 use super::db::DB;
 
 #[derive(sqlx::FromRow, Debug)]
-pub struct Message {
+pub struct MessageEntity {
     /// 消息 ID
     pub id: i32,
     /// 画廊 ID
@@ -16,7 +16,7 @@ pub struct Message {
     pub publish_date: NaiveDate,
 }
 
-impl Message {
+impl MessageEntity {
     pub async fn create(
         id: i32,
         gallery_id: i32,
@@ -35,7 +35,7 @@ impl Message {
             .await
     }
 
-    pub async fn get(id: i32) -> Result<Option<Message>> {
+    pub async fn get(id: i32) -> Result<Option<MessageEntity>> {
         sqlx::query_as("SELECT * FROM publish WHERE id = ?")
             .bind(id)
             .fetch_optional(&*DB)

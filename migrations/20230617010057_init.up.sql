@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS image_hash (
 CREATE TABLE IF NOT EXISTS user_vote (
     user_id   BIGINT  NOT NULL,
     poll_id   INTEGER NOT NULL,
-    option    INTEGER NOT NULL, vote_time DATETIME NOT NULL DEFAULT "2021-05-14 00:00:00.000000000",
+    option    INTEGER NOT NULL,
+    vote_time DATETIME NOT NULL DEFAULT "2021-05-14 00:00:00.000000000",
     PRIMARY KEY (user_id, poll_id)
 );
 CREATE INDEX IF NOT EXISTS gallery_id_index ON gallery (gallery_id);

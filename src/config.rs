@@ -3,12 +3,7 @@ use once_cell::sync::Lazy;
 use serde::Deserialize;
 use teloxide::types::{ChatId, Recipient};
 
-pub static CONFIG: Lazy<Config> = Lazy::new(|| {
-    let path = std::env::var("CONFIG_FILE").unwrap_or_else(|_| "config.toml".to_string());
-    Config::new(&path).unwrap()
-});
-
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct Config {
     /// 日志等级
     pub log_level: String,
@@ -23,19 +18,19 @@ pub struct Config {
     pub telegram: Telegram,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct ExHentai {
     /// 登陆 cookie
-    pub cookie: Option<String>,
+    pub cookie: String,
     /// 搜索参数
     pub search_params: Vec<(String, String)>,
     /// 最大搜索页面
-    pub search_pages: i32,
+    pub search_pages: usize,
     /// 过期天数，超过这个天数的本子不会进行更新 tag 等操作
     pub outdate: i64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct Telegraph {
     /// Telegraph token
     pub access_token: String,
@@ -45,7 +40,7 @@ pub struct Telegraph {
     pub author_url: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct Telegram {
     /// 频道 id
     pub channel_id: Recipient,

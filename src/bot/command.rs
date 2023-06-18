@@ -1,6 +1,7 @@
 use teloxide::utils::command::BotCommands;
 
-#[derive(BotCommands, PartialEq, Debug)]
+// NOTE: 此处必须实现 Clone，否则不满足 dptree 的 Injectable 约束
+#[derive(BotCommands, Clone, PartialEq, Debug)]
 #[command(rename_rule = "lowercase")]
 pub enum AdminCommand {
     #[command(description = "根据 E 站 URL 上传一个指定画廊，如果已存在，则重新上传")]
@@ -9,7 +10,7 @@ pub enum AdminCommand {
     Delete,
 }
 
-#[derive(BotCommands, PartialEq, Debug)]
+#[derive(BotCommands, Clone, PartialEq, Debug)]
 #[command(rename_rule = "lowercase")]
 pub enum PublicCommand {
     #[command(description = "根据消息 URL 更新一个指定画廊")]
