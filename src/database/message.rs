@@ -19,28 +19,22 @@ pub struct MessageEntity {
 
 impl MessageEntity {
     #[tracing::instrument(level = Level::TRACE)]
-    pub async fn create(
-        id: i32,
-        gallery_id: i32,
-        telegraph: &str,
-        upload_images: i32,
-    ) -> Result<SqliteQueryResult> {
+    pub async fn create(id: i32, gallery_id: i32, telegraph: &str) -> Result<SqliteQueryResult> {
         sqlx::query(
-            "REPLACE INTO publish (id, gallery_id, telegraph, upload_images, publish_date) VALUES (?, ?, ?, ?, ?)"
+            "REPLACE INTO publish (id, gallery_id, telegraph, publish_date) VALUES (?, ?, ?, ?)",
         )
-            .bind(id)
-            .bind(gallery_id)
-            .bind(telegraph)
-            .bind(upload_images)
-            .bind(Utc::now().date_naive())
-            .execute(&*DB)
-            .await
+        .bind(id)
+        .bind(gallery_id)
+        .bind(telegraph)
+        .bind(Utc::now().date_naive())
+        .execute(&*DB)
+        .await
     }
 
     #[tracing::instrument(level = Level::TRACE)]
-    pub async fn get(id: i32) -> Result<Option<MessageEntity>> {
-        sqlx::query_as("SELECT * FROM publish WHERE id = ?")
-            .bind(id)
+    pub async fn get_by_gallery_id(gallery_id: i32) -> Result<Option<MessageEntity>> {
+        sqlx::query_as("SELECT * FROM publish WHERE gallery_id = ?")
+            .bind(gallery_id)
             .fetch_optional(&*DB)
             .await
     }

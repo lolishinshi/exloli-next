@@ -39,7 +39,7 @@ impl GalleryEntity {
         id: i32,
         token: &str,
         title: &str,
-        tags: &[(String, Vec<String>)],
+        tags: &IndexMap<String, Vec<String>>,
         pages: i32,
         parent: Option<i32>,
     ) -> Result<SqliteQueryResult> {

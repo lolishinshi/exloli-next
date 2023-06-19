@@ -1,18 +1,22 @@
-use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use chrono::format::parse;
 use futures::{future, stream, StreamExt, TryStreamExt};
+use regex::Regex;
 use reqwest::Client;
 use telegraph_rs::{html_to_node, Error, Telegraph};
+use teloxide::payloads::SendMessageSetters;
+use teloxide::prelude::Requester;
+use teloxide::types::MessageId;
 use teloxide::Bot;
 use tokio::sync::Semaphore;
+use tokio::time;
 use tracing::{debug, error};
 
 use crate::config::Config;
-use crate::database::{GalleryEntity, ImageEntity, PageEntity};
+use crate::database::{GalleryEntity, ImageEntity, MessageEntity, PageEntity};
 use crate::ehentai::{EhClient, EhGallery, EhGalleryUrl, EhPageUrl};
 use crate::utils::imagebytes::ImageBytes;
 use crate::utils::pad_left;
@@ -50,7 +54,7 @@ impl ExloliUploader {
             if let Err(e) = self.check().await {
                 error!("task loop error: {:?}", e);
             }
-            tokio::time::sleep(Duration::from_secs(self.config.interval * 60)).await;
+            time::sleep(Duration::from_secs(self.config.interval * 60)).await;
         }
     }
 
@@ -63,6 +67,7 @@ impl ExloliUploader {
         );
         tokio::pin!(stream);
         while let Some(next) = stream.next().await {
+            // FIXME: update 不需要这么频繁
             self.check_and_update(&next).await?;
             self.check_and_upload(&next).await?;
         }
@@ -79,16 +84,61 @@ impl ExloliUploader {
         }
 
         let gallery = self.ehentai.get_gallery(&gallery).await?;
+        // 上传图片、发布文章
         self.upload_gallery_image(&gallery).await?;
         let article = self.publish_telegraph_article(&gallery).await?;
+        // 发送消息
+        let text = self.create_message_text(&gallery, &article.url).await?;
+        let msg = self
+            .bot
+            .send_message(self.config.telegram.channel_id.clone(), text)
+            .await?;
+        // 数据入库
+        MessageEntity::create(msg.id.0, gallery.url.id(), &article.url).await?;
+        GalleryEntity::create(
+            gallery.url.id(),
+            gallery.url.token(),
+            &gallery.title,
+            &gallery.tags,
+            gallery.pages.len() as i32,
+            gallery.parent.map(|u| u.id()),
+        )
+        .await?;
 
-        todo!()
+        Ok(())
     }
 
     /// 检查指定画廊是否有更新，比如标题、标签
     #[tracing::instrument(skip(self))]
     async fn check_and_update(&self, gallery: &EhGalleryUrl) -> Result<()> {
-        todo!()
+        let entity = GalleryEntity::get(gallery.id())
+            .await?
+            .ok_or(anyhow!("skip"))?;
+        if entity.deleted {
+            return Ok(());
+        }
+
+        let gallery = self.ehentai.get_gallery(&gallery).await?;
+        if gallery.tags == entity.tags.0 && gallery.title == entity.title {
+            return Ok(());
+        }
+
+        let message = MessageEntity::get_by_gallery_id(gallery.url.id())
+            .await?
+            .unwrap();
+        let text = self
+            .create_message_text(&gallery, &message.telegraph)
+            .await?;
+
+        self.bot
+            .edit_message_text(
+                self.config.telegram.channel_id.clone(),
+                MessageId(message.id),
+                text,
+            )
+            .await?;
+
+        Ok(())
     }
 }
 
@@ -161,19 +211,16 @@ impl ExloliUploader {
         html.push_str(&format!("<p>图片总数：{}</p>", gallery.pages.len()));
 
         let node = html_to_node(&html);
-        Ok(self
-            .telegraph
-            .create_page(&gallery.title, &node, false)
-            .await?)
+        // 文章标题优先使用日文
+        let title = gallery.title_jp.as_ref().unwrap_or(&gallery.title);
+        Ok(self.telegraph.create_page(title, &node, false).await?)
     }
 
-    /// 从数据库中读取某个画廊的信息，生成一条可供发送的 telegram 消息正文
-    async fn create_gallery_message_text(&self, gallery: &EhGallery) -> Result<String> {
-        let gallery = GalleryEntity::get(gallery.url.id()).await?.unwrap();
-
+    /// 为画廊生成一条可供发送的 telegram 消息正文
+    async fn create_message_text(&self, gallery: &EhGallery, article: &str) -> Result<String> {
         // 首先，将 tag 翻译
         // 并整理成 namespace: #tag1 #tag2 #tag3 的格式
-        let tags = self.trans.trans_tags(&gallery.tags.0);
+        let tags = self.trans.trans_tags(&gallery.tags);
         let mut text = String::new();
         for (ns, tag) in tags {
             let tag = tag
@@ -181,9 +228,17 @@ impl ExloliUploader {
                 .map(|s| format!("#{}", s))
                 .collect::<Vec<_>>()
                 .join(" ");
+            let tag = Regex::new("[-/· ]").unwrap().replace(&tag, "_");
             text.push_str(&format!("<code>{}</code>: {}\n", pad_left(&ns, 6), tag))
         }
 
-        todo!()
+        text.push_str(&format!(
+            "<code>  预览</code>: <a href=\"{}\">{}</a>\n",
+            v_htmlescape::escape(article),
+            gallery.title
+        ));
+        text.push_str(&format!("<code>原始地址</code>: {}", gallery.url.url()));
+
+        Ok(text)
     }
 }

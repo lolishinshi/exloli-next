@@ -5,12 +5,12 @@ use futures::prelude::*;
 use indexmap::IndexMap;
 use reqwest::header::*;
 use reqwest::Client;
+use scraper::{Html, Selector};
 use serde::Serialize;
 use tracing::{debug, error};
 
 use super::error::*;
 use super::types::*;
-use crate::utils::xpath::Node;
 
 macro_rules! headers {
     ($($k:ident => $v:expr), *) => {{
@@ -26,6 +26,41 @@ macro_rules! send {
             .await
             .and_then(reqwest::Response::error_for_status)
     };
+}
+
+macro_rules! select_element {
+    ($element:expr, $selector:tt) => {{
+        let selector = Selector::parse($selector).unwrap();
+        $element.select(&selector)
+    }};
+}
+
+macro_rules! select_text {
+    ($element:expr, $selector:tt) => {{
+        let selector = Selector::parse($selector).unwrap();
+        $element
+            .select(&selector)
+            .next()
+            .unwrap()
+            .text()
+            .next()
+            .unwrap()
+            .to_owned()
+    }};
+}
+
+macro_rules! select_attr {
+    ($element:expr, $selector:tt, $attr:tt) => {{
+        let selector = Selector::parse($selector).unwrap();
+        $element
+            .select(&selector)
+            .next()
+            .unwrap()
+            .value()
+            .attr($attr)
+            .unwrap()
+            .to_owned()
+    }};
 }
 
 #[derive(Debug, Clone)]
@@ -72,14 +107,14 @@ impl EhClient {
             .get("https://exhentai.org")
             .query(params)
             .query(&[("next", next)]))?;
-        let html = Node::from_html(&resp.text().await?)?;
+        let html = Html::parse_document(&resp.text().await?);
 
-        let gl_list = html.xpath_elem(r#"//table[@class="itg gltc"]/tr[position() > 1]"#)?;
+        let gl_list = select_element!(html, "table.itg.gltc tr:not(:first-child)");
 
         let mut ret = vec![];
         for gl in gl_list {
-            let title = gl.xpath_text(r#".//td[@class="gl3c glname"]/a/div/text()"#)?;
-            let url = gl.xpath_text(r#".//td[@class="gl3c glname"]/a/@href"#)?;
+            let title = select_text!(gl, "td.gl3c.glname a div.glink");
+            let url = select_attr!(gl, "td.gl3c.glname a", "href");
             debug!(url, title);
             ret.push(url.parse()?)
         }
@@ -113,39 +148,45 @@ impl EhClient {
     #[tracing::instrument(skip(self))]
     pub async fn get_gallery(&self, url: &EhGalleryUrl) -> Result<EhGallery> {
         let resp = send!(self.0.get(url.url()))?;
-        let mut html = Node::from_html(&resp.text().await?)?;
+        let mut html = Html::parse_document(&resp.text().await?);
 
         // 英文标题、日文标题、父画廊
-        let title = html.xpath_text(r#"//h1[@id="gn"]/text()"#)?;
-        let title_jp = html.xpath_text(r#"//h1[@id="gj"]/text()"#).ok();
-        let parent = html
-            .xpath_text(r#"//tr[contains(./td[1]/text(), "Parent:")]/td[2]/a/@href"#)
-            .ok();
+        let title = select_text!(html, "h1#gn");
+        let title_jp = select_element!(html, "h1#gj").next().unwrap().text().next();
+        let mut parent = select_element!(html, "td.gdt2")
+            .nth(1)
+            .unwrap()
+            .text()
+            .next();
+        if parent == Some("None") {
+            parent = None
+        }
 
         // 画廊 tag
         let mut tags = IndexMap::new();
-        for ele in html
-            .xpath_elem(r#"//div[@id="taglist"]//tr"#)
-            .unwrap_or_default()
-        {
-            let tag_set_name = ele
-                .xpath_text(r#"./td[1]/text()"#)?
-                .trim_matches(':')
-                .to_owned();
-            let tag = ele.xpath_texts(r#"./td[2]/div/a/text()"#)?;
+        for ele in select_element!(html, "div#taglist tr") {
+            let tag_set_name = select_text!(ele, "td.tc").trim_matches(':').to_string();
+            let tag = select_element!(ele, "td div a")
+                .map(|n| n.text().next().unwrap().to_string())
+                .collect::<Vec<_>>();
             tags.insert(tag_set_name, tag);
         }
 
         // 每一页的 URL
-        let mut pages = html.xpath_texts(r#"//div[@id="gdt"]//a/@href"#)?;
-        while let Ok(next_page) = html.xpath_text(r#"//table[@class="ptt"]//td[last()]/a/@href"#) {
+        let mut pages = select_element!(html, "div.gdtm a")
+            .map(|a| a.value().attr("href").unwrap().to_string())
+            .collect::<Vec<_>>();
+        while let Some(next_page) = select_attr!(html, "table.ptt td:last-child", "href") {
             debug!(next_page);
-            let resp = send!(self.0.get(&next_page))?;
-            html = Node::from_html(&resp.text().await?)?;
-            pages.extend(html.xpath_texts(r#"//div[@id="gdt"]//a/@href"#)?);
+            let resp = send!(self.0.get(next_page))?;
+            html = Html::parse_document(&resp.text().await?);
+            pages.extend(
+                hselect_element!(html, "div.gdtm a")
+                    .map(|a| a.value().attr("href").unwrap().to_string()),
+            );
         }
 
-        let pages = pages.into_iter().map(EhPageUrl::new).collect();
+        let pages = pages.into_iter().map(EhPageUrl).collect();
 
         Ok(EhGallery {
             url: url.clone(),
@@ -161,9 +202,8 @@ impl EhClient {
     #[tracing::instrument(skip(self))]
     pub async fn get_image_url(&self, page: &EhPageUrl) -> Result<String> {
         let resp = send!(self.0.get(page.url()))?;
-        let html = Node::from_html(&resp.text().await?)?;
-        let img = html.xpath_text(r#"//img[@id="img"]/@src"#)?;
-        Ok(img)
+        let html = Html::parse_document(&resp.text().await?);
+        Ok(select_attr!(html, "img#img", "src"))
     }
 
     /// 获取画廊的某一页的图片的字节流

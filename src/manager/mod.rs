@@ -1,2 +1,2 @@
 mod manager;
-mod uploader;
+pub mod uploader;

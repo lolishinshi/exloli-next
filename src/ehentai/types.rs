@@ -1,11 +1,13 @@
 use std::str::FromStr;
 
 use indexmap::IndexMap;
+use scraper::{Html, Selector};
 
 use super::error::EhError;
 
+// 画廊地址，格式为 https://e-hentai.org/g/2549143/16b1b7bab0/
 #[derive(Debug, Clone)]
-pub struct EhGalleryUrl(String);
+pub struct EhGalleryUrl(pub(super) String);
 
 impl EhGalleryUrl {
     /// 画廊 URL
@@ -15,7 +17,6 @@ impl EhGalleryUrl {
 
     /// 画廊 ID
     pub fn id(&self) -> i32 {
-        // 地址格式为 https://e-hentai.org/g/2549143/16b1b7bab0/
         self.0.split('/').nth(4).unwrap().parse().unwrap()
     }
 
@@ -37,18 +38,13 @@ impl FromStr for EhGalleryUrl {
     }
 }
 
+/// 画廊页面地址，格式为 https://exhentai.org/s/03af734602/1932743-1
 #[derive(Debug, Clone)]
-pub struct EhPageUrl(String);
+pub struct EhPageUrl(pub(super) String);
 
 impl EhPageUrl {
     pub fn url(&self) -> &str {
         &self.0
-    }
-
-    // NOTE: 由于此处的输入只会来源于内部，所以跳过了检查
-    // 地址格式为 https://exhentai.org/s/03af734602/1932743-1
-    pub fn new(url: String) -> Self {
-        Self(url)
     }
 
     /// 页面哈希，实际上就是图片哈希的前十位
@@ -80,7 +76,22 @@ pub struct EhGallery {
     /// 画廊标签
     pub tags: IndexMap<String, Vec<String>>,
     /// 父画廊地址
-    pub parent: Option<String>,
+    pub parent: Option<EhGalleryUrl>,
     /// 画廊页面
     pub pages: Vec<EhPageUrl>,
+}
+
+pub trait QuickSelect {
+    fn select_texts(&self, selector: &str) -> Vec<&str>;
+}
+
+impl QuickSelect for Html {
+    fn select_texts(&self, selector: &str) -> Vec<&str> {
+        let selector = Selector::parse(selector).unwrap();
+        self.select(&selector)
+            .next()
+            .unwrap()
+            .text()
+            .collect::<Vec<_>>()
+    }
 }
