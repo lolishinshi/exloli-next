@@ -2,6 +2,7 @@ use std::fmt::Debug;
 use std::time::Duration;
 
 use futures::prelude::*;
+use indexmap::IndexMap;
 use reqwest::header::*;
 use reqwest::Client;
 use serde::Serialize;
@@ -110,8 +111,8 @@ impl EhClient {
     }
 
     #[tracing::instrument(skip(self))]
-    pub async fn get_gallery(&self, url: &str) -> Result<EhGallery> {
-        let resp = send!(self.0.get(url))?;
+    pub async fn get_gallery(&self, url: &EhGalleryUrl) -> Result<EhGallery> {
+        let resp = send!(self.0.get(url.url()))?;
         let mut html = Node::from_html(&resp.text().await?)?;
 
         // 英文标题、日文标题、父画廊
@@ -122,7 +123,7 @@ impl EhClient {
             .ok();
 
         // 画廊 tag
-        let mut tags = vec![];
+        let mut tags = IndexMap::new();
         for ele in html
             .xpath_elem(r#"//div[@id="taglist"]//tr"#)
             .unwrap_or_default()
@@ -132,7 +133,7 @@ impl EhClient {
                 .trim_matches(':')
                 .to_owned();
             let tag = ele.xpath_texts(r#"./td[2]/div/a/text()"#)?;
-            tags.push((tag_set_name, tag));
+            tags.insert(tag_set_name, tag);
         }
 
         // 每一页的 URL
@@ -147,6 +148,7 @@ impl EhClient {
         let pages = pages.into_iter().map(EhPageUrl::new).collect();
 
         Ok(EhGallery {
+            url: url.clone(),
             title,
             title_jp,
             parent,

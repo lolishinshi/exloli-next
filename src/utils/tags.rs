@@ -1,8 +1,9 @@
 use std::collections::HashMap;
 
+use indexmap::IndexMap;
 use serde::Deserialize;
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct EhTagTransDB {
     // repo: String,
     // head: Value,
@@ -10,7 +11,7 @@ pub struct EhTagTransDB {
     data: Vec<EhTagTransData>,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct EhTagTransData {
     namespace: String,
     // frontMatters: Value,
@@ -18,7 +19,7 @@ pub struct EhTagTransData {
     data: HashMap<String, TagInfo>,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct TagInfo {
     name: String,
     // intro: String,
@@ -51,6 +52,25 @@ impl EhTagTransDB {
     /// 翻译 namespace
     pub fn trans_namespace<'s>(&'s self, namespace: &'s str) -> &'s str {
         self.trans("rows", namespace)[0]
+    }
+
+    /// 翻译整组 tags
+    pub fn trans_tags(
+        &self,
+        tags: &IndexMap<String, Vec<String>>,
+    ) -> IndexMap<String, Vec<String>> {
+        let mut result = IndexMap::new();
+        for (namespace, tags) in tags.iter() {
+            let t_ns = self.trans_namespace(namespace);
+            let t_tags = tags
+                .iter()
+                .map(|t| self.trans(namespace, t))
+                .flatten()
+                .map(|s| s.to_string())
+                .collect::<Vec<_>>();
+            result.insert(t_ns.to_owned(), t_tags);
+        }
+        result
     }
 }
 

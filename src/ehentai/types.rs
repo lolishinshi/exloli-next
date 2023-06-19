@@ -1,5 +1,7 @@
 use std::str::FromStr;
 
+use indexmap::IndexMap;
+
 use super::error::EhError;
 
 #[derive(Debug, Clone)]
@@ -53,16 +55,30 @@ impl EhPageUrl {
     pub fn hash(&self) -> &str {
         self.0.split('/').nth(4).unwrap()
     }
+
+    /// 画廊 ID
+    pub fn gallery_id(&self) -> i32 {
+        let last = self.0.split('/').last().unwrap();
+        last.split('-').nth(0).unwrap().parse().unwrap()
+    }
+
+    /// 页码
+    pub fn page(&self) -> i32 {
+        let last = self.0.split('/').last().unwrap();
+        last.split('-').nth(1).unwrap().parse().unwrap()
+    }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct EhGallery {
+    /// URL
+    pub url: EhGalleryUrl,
     /// 画廊标题
     pub title: String,
     /// 画廊日文标题
     pub title_jp: Option<String>,
     /// 画廊标签
-    pub tags: Vec<(String, Vec<String>)>,
+    pub tags: IndexMap<String, Vec<String>>,
     /// 父画廊地址
     pub parent: Option<String>,
     /// 画廊页面

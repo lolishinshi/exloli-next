@@ -28,6 +28,8 @@ pub struct ExHentai {
     pub search_pages: usize,
     /// 过期天数，超过这个天数的本子不会进行更新 tag 等操作
     pub outdate: i64,
+    /// 翻译文件的位置
+    pub trans_file: String,
 }
 
 #[derive(Debug, Clone, Deserialize)]
