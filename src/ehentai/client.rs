@@ -7,10 +7,13 @@ use reqwest::header::*;
 use reqwest::Client;
 use scraper::{Html, Selector};
 use serde::Serialize;
+use tokio::runtime::Handle;
+use tokio::task;
 use tracing::{debug, error};
 
 use super::error::*;
 use super::types::*;
+use crate::utils::html::SelectorExtend;
 
 macro_rules! headers {
     ($($k:ident => $v:expr), *) => {{
@@ -28,39 +31,10 @@ macro_rules! send {
     };
 }
 
-macro_rules! select_element {
-    ($element:expr, $selector:tt) => {{
-        let selector = Selector::parse($selector).unwrap();
-        $element.select(&selector)
-    }};
-}
-
-macro_rules! select_text {
-    ($element:expr, $selector:tt) => {{
-        let selector = Selector::parse($selector).unwrap();
-        $element
-            .select(&selector)
-            .next()
-            .unwrap()
-            .text()
-            .next()
-            .unwrap()
-            .to_owned()
-    }};
-}
-
-macro_rules! select_attr {
-    ($element:expr, $selector:tt, $attr:tt) => {{
-        let selector = Selector::parse($selector).unwrap();
-        $element
-            .select(&selector)
-            .next()
-            .unwrap()
-            .value()
-            .attr($attr)
-            .unwrap()
-            .to_owned()
-    }};
+macro_rules! selector {
+    ($selector:tt) => {
+        Selector::parse($selector).unwrap()
+    };
 }
 
 #[derive(Debug, Clone)]
@@ -109,12 +83,13 @@ impl EhClient {
             .query(&[("next", next)]))?;
         let html = Html::parse_document(&resp.text().await?);
 
-        let gl_list = select_element!(html, "table.itg.gltc tr:not(:first-child)");
+        let selector = selector!("table.itg.gltc tr:not(:first-child)");
+        let gl_list = html.select(&selector);
 
         let mut ret = vec![];
         for gl in gl_list {
-            let title = select_text!(gl, "td.gl3c.glname a div.glink");
-            let url = select_attr!(gl, "td.gl3c.glname a", "href");
+            let title = gl.select_text("td.gl3c.glname a div.glink").unwrap();
+            let url = gl.select_attr("td.gl3c.glname a", "href").unwrap();
             debug!(url, title);
             ret.push(url.parse()?)
         }
@@ -151,39 +126,41 @@ impl EhClient {
         let mut html = Html::parse_document(&resp.text().await?);
 
         // 英文标题、日文标题、父画廊
-        let title = select_text!(html, "h1#gn");
-        let title_jp = select_element!(html, "h1#gj").next().unwrap().text().next();
-        let mut parent = select_element!(html, "td.gdt2")
-            .nth(1)
-            .unwrap()
-            .text()
-            .next();
-        if parent == Some("None") {
-            parent = None
-        }
+        let title = html.select_text("h1#gn").unwrap();
+        let title_jp = html.select_text("h1#gj");
+        let parent = html.select_attr("td.gdt2 a", "href").map(EhGalleryUrl);
 
         // 画廊 tag
         let mut tags = IndexMap::new();
-        for ele in select_element!(html, "div#taglist tr") {
-            let tag_set_name = select_text!(ele, "td.tc").trim_matches(':').to_string();
-            let tag = select_element!(ele, "td div a")
-                .map(|n| n.text().next().unwrap().to_string())
-                .collect::<Vec<_>>();
-            tags.insert(tag_set_name, tag);
+        let selector = selector!("div#taglist tr");
+        for ele in html.select(&selector) {
+            let namespace = ele
+                .select_text("td.tc")
+                .unwrap()
+                .trim_matches(':')
+                .to_string();
+            let tag = ele.select_texts("td div a");
+            tags.insert(namespace, tag);
         }
 
         // 每一页的 URL
-        let mut pages = select_element!(html, "div.gdtm a")
-            .map(|a| a.value().attr("href").unwrap().to_string())
-            .collect::<Vec<_>>();
-        while let Some(next_page) = select_attr!(html, "table.ptt td:last-child", "href") {
+        let mut pages = html.select_attrs("div.gdtm a", "href");
+        while let Some(next_page) = html.select_attr("table.ptt td:last-child", "href") {
             debug!(next_page);
-            let resp = send!(self.0.get(next_page))?;
-            html = Html::parse_document(&resp.text().await?);
-            pages.extend(
-                hselect_element!(html, "div.gdtm a")
-                    .map(|a| a.value().attr("href").unwrap().to_string()),
-            );
+            // FIXME: 此处的迷惑行为，不知道有没有更好的解决办法
+            // 1. 由于 Html 结构体是 !Send 的，我们要避免在它被包含在 Future 的上下文中，否则这个 Future
+            //    也会是 !Send，然后就没办法 tokio::spawn 了（不过可以 tokio::task::spawn_local
+            // 2. 使用 block_on 可以让这个 Future 立即被消耗掉，但是这样会阻塞当前线程，所以需要在外面
+            //    再套上 block_in_place
+            let client = self.0.clone();
+            let text = task::block_in_place(move || {
+                Handle::current().block_on(async move {
+                    let resp = send!(client.get(next_page))?;
+                    Result::Ok(resp.text().await?)
+                })
+            })?;
+            html = Html::parse_document(&text);
+            pages.extend(html.select_attrs("div.gdtm a", "href"));
         }
 
         let pages = pages.into_iter().map(EhPageUrl).collect();
@@ -203,7 +180,7 @@ impl EhClient {
     pub async fn get_image_url(&self, page: &EhPageUrl) -> Result<String> {
         let resp = send!(self.0.get(page.url()))?;
         let html = Html::parse_document(&resp.text().await?);
-        Ok(select_attr!(html, "img#img", "src"))
+        Ok(html.select_attr("img#img", "src").unwrap())
     }
 
     /// 获取画廊的某一页的图片的字节流

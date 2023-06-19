@@ -80,18 +80,3 @@ pub struct EhGallery {
     /// 画廊页面
     pub pages: Vec<EhPageUrl>,
 }
-
-pub trait QuickSelect {
-    fn select_texts(&self, selector: &str) -> Vec<&str>;
-}
-
-impl QuickSelect for Html {
-    fn select_texts(&self, selector: &str) -> Vec<&str> {
-        let selector = Selector::parse(selector).unwrap();
-        self.select(&selector)
-            .next()
-            .unwrap()
-            .text()
-            .collect::<Vec<_>>()
-    }
-}

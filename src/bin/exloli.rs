@@ -7,12 +7,12 @@ use teloxide::Bot;
 #[tokio::main]
 async fn main() -> Result<()> {
     let config = Config::new("./config.toml").unwrap();
-    let ehclient = EhClient::new(&config.exhentai.cookie).await?;
+    let ehentai = EhClient::new(&config.exhentai.cookie).await?;
     let bot = Bot::new(&config.telegram.token);
 
-    let uploader = ExloliUploader::new(config, ehclient, bot).await?;
+    let uploader = ExloliUploader::new(config, ehentai, bot).await?;
 
-    tokio::spawn(uploader.start());
+    tokio::spawn(async move { uploader.start().await });
 
     Ok(())
 }

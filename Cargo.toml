@@ -18,7 +18,7 @@ scraper = "0.16.0"
 serde = { version = "1.0.164", features = ["derive"] }
 serde_json = "1.0.97"
 sqlx = { version = "0.6.3", features = ["runtime-tokio-native-tls", "sqlite", "chrono"] }
-telegraph-rs = "0.6.1"
+telegraph-rs = { version = "0.6.2", git = "https://github.com/Aloxaf/telegraph-rs" }
 teloxide = { version = "0.12.2", features = ["throttle", "cache-me", "macros"] }
 thiserror = "1.0.40"
 tokio = { version = "1.28.2", features = ["time", "rt-multi-thread", "macros"] }
