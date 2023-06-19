@@ -1,12 +1,11 @@
 use std::str::FromStr;
 
 use indexmap::IndexMap;
-use scraper::{Html, Selector};
 
 use super::error::EhError;
 
 // 画廊地址，格式为 https://e-hentai.org/g/2549143/16b1b7bab0/
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct EhGalleryUrl(pub(super) String);
 
 impl EhGalleryUrl {
@@ -39,7 +38,7 @@ impl FromStr for EhGalleryUrl {
 }
 
 /// 画廊页面地址，格式为 https://exhentai.org/s/03af734602/1932743-1
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct EhPageUrl(pub(super) String);
 
 impl EhPageUrl {
@@ -55,7 +54,7 @@ impl EhPageUrl {
     /// 画廊 ID
     pub fn gallery_id(&self) -> i32 {
         let last = self.0.split('/').last().unwrap();
-        last.split('-').nth(0).unwrap().parse().unwrap()
+        last.split('-').next().unwrap().parse().unwrap()
     }
 
     /// 页码

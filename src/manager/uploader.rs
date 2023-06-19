@@ -2,22 +2,19 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{anyhow, Result};
-use chrono::format::parse;
-use futures::{future, stream, StreamExt, TryStreamExt};
+use futures::{stream, StreamExt};
 use regex::Regex;
 use reqwest::Client;
-use telegraph_rs::{html_to_node, Error, Telegraph};
-use teloxide::payloads::SendMessageSetters;
+use telegraph_rs::{html_to_node, Telegraph};
 use teloxide::prelude::Requester;
 use teloxide::types::MessageId;
 use teloxide::Bot;
-use tokio::sync::Semaphore;
 use tokio::time;
 use tracing::{debug, error};
 
 use crate::config::Config;
 use crate::database::{GalleryEntity, ImageEntity, MessageEntity, PageEntity};
-use crate::ehentai::{EhClient, EhGallery, EhGalleryUrl, EhPageUrl};
+use crate::ehentai::{EhClient, EhGallery, EhGalleryUrl};
 use crate::utils::imagebytes::ImageBytes;
 use crate::utils::pad_left;
 use crate::utils::tags::EhTagTransDB;
@@ -79,11 +76,11 @@ impl ExloliUploader {
     /// 为了避免绕晕自己，这次不考虑父子画廊，只要 id 不同就视为新画廊，只要是新画廊就进行上传
     #[tracing::instrument(skip(self))]
     async fn check_and_upload(&self, gallery: &EhGalleryUrl) -> Result<()> {
-        if GalleryEntity::get(gallery.id()).await?.is_some() {
+        if GalleryEntity::check(gallery.id()).await? {
             return Ok(());
         }
 
-        let gallery = self.ehentai.get_gallery(&gallery).await?;
+        let gallery = self.ehentai.get_gallery(gallery).await?;
         // 上传图片、发布文章
         self.upload_gallery_image(&gallery).await?;
         let article = self.publish_telegraph_article(&gallery).await?;
@@ -114,11 +111,8 @@ impl ExloliUploader {
         let entity = GalleryEntity::get(gallery.id())
             .await?
             .ok_or(anyhow!("skip"))?;
-        if entity.deleted {
-            return Ok(());
-        }
 
-        let gallery = self.ehentai.get_gallery(&gallery).await?;
+        let gallery = self.ehentai.get_gallery(gallery).await?;
         if gallery.tags == entity.tags.0 && gallery.title == entity.title {
             return Ok(());
         }

@@ -1,5 +1,4 @@
 use anyhow::Result;
-use once_cell::sync::Lazy;
 use serde::Deserialize;
 use teloxide::types::{ChatId, Recipient};
 

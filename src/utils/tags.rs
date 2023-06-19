@@ -64,8 +64,7 @@ impl EhTagTransDB {
             let t_ns = self.trans_namespace(namespace);
             let t_tags = tags
                 .iter()
-                .map(|t| self.trans(namespace, t))
-                .flatten()
+                .flat_map(|t| self.trans(namespace, t))
                 .map(|s| s.to_string())
                 .collect::<Vec<_>>();
             result.insert(t_ns.to_owned(), t_tags);

@@ -9,3 +9,10 @@ pub use command_admin::*;
 pub use command_public::*;
 pub use inline_query::*;
 pub use poll::*;
+
+#[macro_export]
+macro_rules! reply_to {
+    ($b:expr, $m:expr, $t:expr) => {
+        $b.send_message($m.chat.id, $t).reply_to_message_id($m.id)
+    };
+}

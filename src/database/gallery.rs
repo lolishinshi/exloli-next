@@ -56,11 +56,22 @@ impl GalleryEntity {
     }
 
     /// 根据 ID 获取一条记录
+    ///
+    /// 注意，此处不会返回已被标记为删除的记录
     #[tracing::instrument(level = Level::TRACE)]
     pub async fn get(id: i32) -> Result<Option<GalleryEntity>> {
-        sqlx::query_as("SELECT * FROM gallery WHERE id = ?")
+        sqlx::query_as("SELECT * FROM gallery WHERE id = ? AND deleted = FALSE")
             .bind(id)
             .fetch_optional(&*DB)
+            .await
+    }
+
+    /// 检查画廊是否存在，此处不会考虑删除标记
+    #[tracing::instrument(level = Level::TRACE)]
+    pub async fn check(id: i32) -> Result<bool> {
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM gallery WHERE id = ?)")
+            .bind(id)
+            .fetch_one(&*DB)
             .await
     }
 
