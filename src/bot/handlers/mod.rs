@@ -1,11 +1,13 @@
 mod callback_query;
 mod command_admin;
 mod command_public;
+mod custom_poll;
 mod utils;
 
 pub use callback_query::*;
 pub use command_admin::*;
 pub use command_public::*;
+pub use custom_poll::*;
 
 #[macro_export]
 macro_rules! reply_to {

@@ -162,7 +162,7 @@ impl ExloliUploader {
         for page in &gallery.pages {
             match ImageEntity::get_by_hash(page.hash()).await? {
                 Some(img) => {
-                    // NOTE: 此处存在重复插入的可能，但是由于 PageEntity::create 使用 REPLACE，所以不影响
+                    // NOTE: 此处存在重复插入的可能，但是由于 PageEntity::create 使用 OR IGNORE，所以不影响
                     PageEntity::create(page.gallery_id(), page.page(), img.id).await?;
                 }
                 None => pages.push(page.clone()),

@@ -36,8 +36,8 @@ pub struct GalleryEntity {
 }
 
 impl GalleryEntity {
-    /// 创建一条记录，如果原先有记录，则会被覆盖
-    #[tracing::instrument(level = Level::TRACE)]
+    /// 创建一条记录
+    #[tracing::instrument(level = Level::DEBUG)]
     pub async fn create(
         id: i32,
         token: &str,
@@ -47,7 +47,7 @@ impl GalleryEntity {
         pages: i32,
         parent: Option<i32>,
     ) -> Result<SqliteQueryResult> {
-        sqlx::query("REPLACE INTO gallery (id, token, title, title_jp, tags, pages, parent, deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+        sqlx::query("INSERT INTO gallery (id, token, title, title_jp, tags, pages, parent, deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
             .bind(id)
             .bind(token)
             .bind(title)
@@ -63,7 +63,7 @@ impl GalleryEntity {
     /// 根据 ID 获取一条记录
     ///
     /// 注意，此处不会返回已被标记为删除的记录
-    #[tracing::instrument(level = Level::TRACE)]
+    #[tracing::instrument(level = Level::DEBUG)]
     pub async fn get(id: i32) -> Result<Option<GalleryEntity>> {
         sqlx::query_as("SELECT * FROM gallery WHERE id = ? AND deleted = FALSE")
             .bind(id)
@@ -71,8 +71,18 @@ impl GalleryEntity {
             .await
     }
 
+    /// 根据消息 ID 获取一条记录
+    pub async fn get_by_msg(id: i32) -> Result<Option<GalleryEntity>> {
+        sqlx::query_as(
+            "SELECT * FROM gallery JOIN message ON gallery.id = message.gallery_id WHERE message.id = ? AND gallery.deleted = FALSE"
+        )
+            .bind(id)
+            .fetch_optional(&*DB)
+            .await
+    }
+
     /// 检查画廊是否存在，此处不会考虑删除标记
-    #[tracing::instrument(level = Level::TRACE)]
+    #[tracing::instrument(level = Level::DEBUG)]
     pub async fn check(id: i32) -> Result<bool> {
         sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM gallery WHERE id = ?)")
             .bind(id)
@@ -81,7 +91,7 @@ impl GalleryEntity {
     }
 
     /// 根据 ID 更新 tag
-    #[tracing::instrument(level = Level::TRACE)]
+    #[tracing::instrument(level = Level::DEBUG)]
     pub async fn update_tags(id: i32, tags: &[(String, Vec<String>)]) -> Result<SqliteQueryResult> {
         sqlx::query("UPDATE gallery SET tags = ? WHERE id = ?")
             .bind(serde_json::to_string(tags).unwrap())
@@ -91,7 +101,7 @@ impl GalleryEntity {
     }
 
     /// 根据 ID 更新删除状态
-    #[tracing::instrument(level = Level::TRACE)]
+    #[tracing::instrument(level = Level::DEBUG)]
     pub async fn update_deleted(id: i32, deleted: bool) -> Result<SqliteQueryResult> {
         sqlx::query("UPDATE gallery SET deleted = ? WHERE id = ?")
             .bind(deleted)
@@ -101,14 +111,14 @@ impl GalleryEntity {
     }
 
     /// 彻底删除一个画廊
-    #[tracing::instrument(level = Level::TRACE)]
+    #[tracing::instrument(level = Level::DEBUG)]
     pub async fn delete(id: i32) -> Result<SqliteQueryResult> {
         sqlx::query("DELETE FROM gallery WHERE id = ?").bind(id).execute(&*DB).await
     }
 
     /// 查询自指定日期以来的本子，结果按分数从高到低排列
     /// 返回 分数、标题、消息 ID
-    #[tracing::instrument(level = Level::TRACE)]
+    #[tracing::instrument(level = Level::DEBUG)]
     pub async fn list(
         start: NaiveDate,
         end: NaiveDate,

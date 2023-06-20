@@ -1,11 +1,17 @@
 use anyhow::Result;
 use chrono::{Duration, Utc};
 use reqwest::Url;
+use serde::{Deserialize, Serialize};
 use teloxide::prelude::*;
 use teloxide::types::{MessageId, Recipient};
 use teloxide::utils::html::link;
 
 use crate::database::GalleryEntity;
+
+#[derive(Serialize, Deserialize)]
+pub enum CallbackData {
+    VoteForPoll(i32, i32),
+}
 
 pub async fn cmd_best_text(
     start: i64,

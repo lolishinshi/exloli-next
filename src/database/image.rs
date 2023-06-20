@@ -73,10 +73,10 @@ impl ImageEntity {
 }
 
 impl PageEntity {
-    /// 创建一条记录
+    /// 创建一条记录，有冲突时则忽略
     #[tracing::instrument(level = Level::DEBUG)]
     pub async fn create(gallery_id: i32, page: i32, image_id: i32) -> Result<SqliteQueryResult> {
-        sqlx::query("REPLACE INTO page (gallery_id, page, image_id) VALUES (?, ?, ?)")
+        sqlx::query("INSERT OR IGNORE INTO page (gallery_id, page, image_id) VALUES (?, ?, ?)")
             .bind(gallery_id)
             .bind(page)
             .bind(image_id)

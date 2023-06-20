@@ -21,7 +21,7 @@ impl MessageEntity {
     #[tracing::instrument(level = Level::DEBUG)]
     pub async fn create(id: i32, gallery_id: i32, telegraph: &str) -> Result<SqliteQueryResult> {
         sqlx::query(
-            "REPLACE INTO message (id, gallery_id, telegraph, publish_date) VALUES (?, ?, ?, ?)",
+            "INSERT INTO message (id, gallery_id, telegraph, publish_date) VALUES (?, ?, ?, ?)",
         )
         .bind(id)
         .bind(gallery_id)

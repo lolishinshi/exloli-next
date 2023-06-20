@@ -1,6 +1,6 @@
 use chrono::{NaiveDateTime, Utc};
 use sqlx::sqlite::SqliteQueryResult;
-use sqlx::Row;
+use sqlx::{Result, Row};
 use tracing::Level;
 
 use super::db::DB;
@@ -8,6 +8,7 @@ use super::db::DB;
 #[derive(sqlx::FromRow, Debug)]
 pub struct PollEntity {
     /// 投票 ID
+    /// NOTE: 仅部分早期投票 id 范围是 i64
     pub id: i64,
     /// 画廊 ID
     pub gallery_id: i32,
@@ -28,9 +29,10 @@ pub struct VoteEntity {
 }
 
 impl PollEntity {
+    /// 插入一条记录，如果冲突则忽略
     #[tracing::instrument(level = Level::DEBUG)]
-    pub async fn create(id: i64, gallery_id: i32) -> sqlx::Result<SqliteQueryResult> {
-        sqlx::query("INSERT INTO poll (id, gallery_id, score) VALUES (?, ?, 0.0)")
+    pub async fn create(id: i64, gallery_id: i32) -> Result<SqliteQueryResult> {
+        sqlx::query("INSERT OR IGNORE INTO poll (id, gallery_id, score) VALUES (?, ?, 0.0)")
             .bind(id)
             .bind(gallery_id)
             .execute(&*DB)
@@ -38,12 +40,15 @@ impl PollEntity {
     }
 
     #[tracing::instrument(level = Level::DEBUG)]
-    pub async fn get_by_gallery_id(gallery_id: i32) -> sqlx::Result<SqliteQueryResult> {
-        sqlx::query("SELECT * FROM poll WHERE gallery_id = ?").bind(gallery_id).execute(&*DB).await
+    pub async fn get_by_gallery(gallery_id: i32) -> Result<Option<Self>> {
+        sqlx::query_as("SELECT * FROM poll WHERE gallery_id = ?")
+            .bind(gallery_id)
+            .fetch_optional(&*DB)
+            .await
     }
 
     #[tracing::instrument(level = Level::DEBUG)]
-    pub async fn get_vote(id: i64) -> sqlx::Result<[i32; 5]> {
+    pub async fn get_vote(id: i64) -> Result<[i32; 5]> {
         let mut result = [0; 5];
         let rows = sqlx::query(
             "SELECT option, COUNT(option) FROM poll JOIN vote ON poll.id = vote.poll_id WHERE poll.id = ? GROUP BY option"
@@ -58,7 +63,7 @@ impl PollEntity {
     }
 
     #[tracing::instrument(level = Level::DEBUG)]
-    async fn update_score(id: i64) -> sqlx::Result<f32> {
+    async fn update_score(id: i64) -> Result<f32> {
         let vote = Self::get_vote(id).await?;
         let score = wilson_score(&vote);
         sqlx::query("UPDATE poll SET score = ? WHERE id = ?")
@@ -72,11 +77,7 @@ impl PollEntity {
 
 impl VoteEntity {
     #[tracing::instrument(level = Level::DEBUG)]
-    pub async fn create(
-        user_id: i32,
-        poll_id: i64,
-        option: i32,
-    ) -> sqlx::Result<SqliteQueryResult> {
+    pub async fn create(user_id: i32, poll_id: i64, option: i32) -> Result<SqliteQueryResult> {
         let result = sqlx::query(
             "INSERT INTO vote (user_id, poll_id, option, vote_time) VALUES (?, ?, ?, ?)",
         )
