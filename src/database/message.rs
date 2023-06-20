@@ -32,6 +32,14 @@ impl MessageEntity {
     }
 
     #[tracing::instrument(level = Level::TRACE)]
+    pub async fn get(id: i32) -> Result<Option<MessageEntity>> {
+        sqlx::query_as("SELECT * FROM publish WHERE id = ?")
+            .bind(id)
+            .fetch_optional(&*DB)
+            .await
+    }
+
+    #[tracing::instrument(level = Level::TRACE)]
     pub async fn get_by_gallery_id(gallery_id: i32) -> Result<Option<MessageEntity>> {
         sqlx::query_as("SELECT * FROM publish WHERE gallery_id = ?")
             .bind(gallery_id)

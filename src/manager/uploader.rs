@@ -14,7 +14,7 @@ use tracing::{debug, error};
 
 use crate::config::Config;
 use crate::database::{GalleryEntity, ImageEntity, MessageEntity, PageEntity};
-use crate::ehentai::{EhClient, EhGallery, EhGalleryUrl};
+use crate::ehentai::{EhClient, EhGallery, EhGalleryUrl, GalleryInfo};
 use crate::utils::imagebytes::ImageBytes;
 use crate::utils::pad_left;
 use crate::utils::tags::EhTagTransDB;
@@ -75,7 +75,7 @@ impl ExloliUploader {
     ///
     /// 为了避免绕晕自己，这次不考虑父子画廊，只要 id 不同就视为新画廊，只要是新画廊就进行上传
     #[tracing::instrument(skip(self))]
-    async fn check_and_upload(&self, gallery: &EhGalleryUrl) -> Result<()> {
+    pub async fn check_and_upload(&self, gallery: &EhGalleryUrl) -> Result<()> {
         if GalleryEntity::check(gallery.id()).await? {
             return Ok(());
         }
@@ -96,6 +96,7 @@ impl ExloliUploader {
             gallery.url.id(),
             gallery.url.token(),
             &gallery.title,
+            &gallery.title_jp,
             &gallery.tags,
             gallery.pages.len() as i32,
             gallery.parent.map(|u| u.id()),
@@ -107,7 +108,7 @@ impl ExloliUploader {
 
     /// 检查指定画廊是否有更新，比如标题、标签
     #[tracing::instrument(skip(self))]
-    async fn check_and_update(&self, gallery: &EhGalleryUrl) -> Result<()> {
+    pub async fn check_and_update(&self, gallery: &EhGalleryUrl) -> Result<()> {
         let entity = GalleryEntity::get(gallery.id())
             .await?
             .ok_or(anyhow!("skip"))?;
@@ -132,6 +133,22 @@ impl ExloliUploader {
             )
             .await?;
 
+        Ok(())
+    }
+
+    /// 重新发布指定画廊的文章
+    #[tracing::instrument(skip(self))]
+    pub async fn republish(&self, gallery: &GalleryEntity, msg: &MessageEntity) -> Result<()> {
+        let article = self.publish_telegraph_article(gallery).await?;
+        let text = self.create_message_text(gallery, &article.url).await?;
+        self.bot
+            .edit_message_text(
+                self.config.telegram.channel_id.clone(),
+                MessageId(msg.id),
+                text,
+            )
+            .await?;
+        MessageEntity::update_telegraph(gallery.id, &article.url).await?;
         Ok(())
     }
 }
@@ -195,26 +212,34 @@ impl ExloliUploader {
     }
 
     /// 从数据库中读取某个画廊的所有图片，生成一篇 telegraph 文章
-    async fn publish_telegraph_article(&self, gallery: &EhGallery) -> Result<telegraph_rs::Page> {
-        let images = ImageEntity::get_by_gallery_id(gallery.url.id()).await?;
+    /// 为了防止画廊被删除后无法更新，此处不应该依赖 EhGallery
+    async fn publish_telegraph_article<T: GalleryInfo>(
+        &self,
+        gallery: &T,
+    ) -> Result<telegraph_rs::Page> {
+        let images = ImageEntity::get_by_gallery_id(gallery.url().id()).await?;
 
         let mut html = String::new();
         for img in images {
             html.push_str(&format!(r#"<img src="{}">"#, img.url));
         }
-        html.push_str(&format!("<p>图片总数：{}</p>", gallery.pages.len()));
+        html.push_str(&format!("<p>图片总数：{}</p>", gallery.pages()));
 
         let node = html_to_node(&html);
         // 文章标题优先使用日文
-        let title = gallery.title_jp.as_ref().unwrap_or(&gallery.title);
-        Ok(self.telegraph.create_page(title, &node, false).await?)
+        let title = gallery.title_jp();
+        Ok(self.telegraph.create_page(&title, &node, false).await?)
     }
 
     /// 为画廊生成一条可供发送的 telegram 消息正文
-    async fn create_message_text(&self, gallery: &EhGallery, article: &str) -> Result<String> {
+    async fn create_message_text<T: GalleryInfo>(
+        &self,
+        gallery: &T,
+        article: &str,
+    ) -> Result<String> {
         // 首先，将 tag 翻译
         // 并整理成 namespace: #tag1 #tag2 #tag3 的格式
-        let tags = self.trans.trans_tags(&gallery.tags);
+        let tags = self.trans.trans_tags(gallery.tags());
         let mut text = String::new();
         for (ns, tag) in tags {
             let tag = tag
@@ -229,9 +254,9 @@ impl ExloliUploader {
         text.push_str(&format!(
             "<code>  预览</code>: <a href=\"{}\">{}</a>\n",
             v_htmlescape::escape(article),
-            gallery.title
+            gallery.title()
         ));
-        text.push_str(&format!("<code>原始地址</code>: {}", gallery.url.url()));
+        text.push_str(&format!("<code>原始地址</code>: {}", gallery.url().url()));
 
         Ok(text)
     }

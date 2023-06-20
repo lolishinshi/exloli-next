@@ -38,7 +38,7 @@ macro_rules! selector {
 }
 
 #[derive(Debug, Clone)]
-pub struct EhClient(Client);
+pub struct EhClient(pub Client);
 
 impl EhClient {
     #[tracing::instrument]

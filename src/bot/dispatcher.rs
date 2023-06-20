@@ -1,26 +1,15 @@
 use teloxide::prelude::*;
 
-use super::command::*;
-use super::filter::*;
 use super::handlers::*;
 use crate::config::Config;
-use crate::ehentai::EhClient;
+use crate::manager::uploader::ExloliUploader;
 
-pub async fn start_dispatcher(config: Config, ehentai: EhClient, bot: Bot) {
+pub async fn start_dispatcher(config: Config, ehentai: ExloliUploader, bot: Bot) {
     let handler = dptree::entry()
         .branch(
             Update::filter_message()
-                .branch(
-                    dptree::entry()
-                        .filter_command::<AdminCommand>()
-                        .chain(filter_admin_msg())
-                        .endpoint(admin_command_handler),
-                )
-                .branch(
-                    dptree::entry()
-                        .filter_command::<PublicCommand>()
-                        .chain(public_command_handler()),
-                ),
+                .branch(admin_command_handler())
+                .branch(public_command_handler()),
         )
         .branch(Update::filter_poll().endpoint(poll_handler))
         .branch(Update::filter_inline_query().endpoint(inline_query_handler))

@@ -22,6 +22,8 @@ pub struct GalleryEntity {
     pub token: String,
     /// 画廊标题
     pub title: String,
+    /// 画廊日文标题
+    pub title_jp: Option<String>,
     /// JSON 格式的画廊标签
     pub tags: TagsEntity,
     /// 页面数量
@@ -33,20 +35,22 @@ pub struct GalleryEntity {
 }
 
 impl GalleryEntity {
-    /// 创建一条记录
+    /// 创建一条记录，如果原先有记录，则会被覆盖
     #[tracing::instrument(level = Level::TRACE)]
     pub async fn create(
         id: i32,
         token: &str,
         title: &str,
+        title_jp: &Option<String>,
         tags: &IndexMap<String, Vec<String>>,
         pages: i32,
         parent: Option<i32>,
     ) -> Result<SqliteQueryResult> {
-        sqlx::query("INSERT INTO gallery (id, token, title, tags, pages, parent, deleted) VALUES (?, ?, ?, ?, ?, ?, ?)")
+        sqlx::query("REPLACE INTO gallery (id, token, title, title_jp, tags, pages, parent, deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
             .bind(id)
             .bind(token)
             .bind(title)
+            .bind(title_jp)
             .bind(serde_json::to_string(tags).unwrap())
             .bind(pages)
             .bind(parent)
@@ -80,6 +84,16 @@ impl GalleryEntity {
     pub async fn update_tags(id: i32, tags: &[(String, Vec<String>)]) -> Result<SqliteQueryResult> {
         sqlx::query("UPDATE gallery SET tags = ? WHERE id = ?")
             .bind(serde_json::to_string(tags).unwrap())
+            .bind(id)
+            .execute(&*DB)
+            .await
+    }
+
+    /// 根据 ID 更新删除状态
+    #[tracing::instrument(level = Level::TRACE)]
+    pub async fn update_deleted(id: i32, deleted: bool) -> Result<SqliteQueryResult> {
+        sqlx::query("UPDATE gallery SET deleted = ? WHERE id = ?")
+            .bind(deleted)
             .bind(id)
             .execute(&*DB)
             .await

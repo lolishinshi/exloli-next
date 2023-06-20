@@ -12,9 +12,10 @@ async fn main() -> Result<()> {
     let bot = Bot::new(&config.telegram.token);
 
     let uploader = ExloliUploader::new(config.clone(), ehentai.clone(), bot.clone()).await?;
+    let uploader2 = uploader.clone();
 
     let t1 = tokio::spawn(async move { uploader.start().await });
-    let t2 = tokio::spawn(async move { start_dispatcher(config, ehentai, bot).await });
+    let t2 = tokio::spawn(async move { start_dispatcher(config, uploader2, bot).await });
 
     tokio::try_join!(t1, t2)?;
 

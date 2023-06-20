@@ -3,6 +3,7 @@ use std::str::FromStr;
 use indexmap::IndexMap;
 
 use super::error::EhError;
+use crate::database::GalleryEntity;
 
 // 画廊地址，格式为 https://e-hentai.org/g/2549143/16b1b7bab0/
 #[derive(Debug, Clone, PartialEq)]
@@ -78,4 +79,62 @@ pub struct EhGallery {
     pub parent: Option<EhGalleryUrl>,
     /// 画廊页面
     pub pages: Vec<EhPageUrl>,
+}
+
+pub trait GalleryInfo {
+    fn url(&self) -> EhGalleryUrl;
+
+    fn title(&self) -> String;
+
+    fn title_jp(&self) -> String;
+
+    fn tags(&self) -> &IndexMap<String, Vec<String>>;
+
+    fn pages(&self) -> usize;
+}
+
+impl GalleryInfo for EhGallery {
+    fn url(&self) -> EhGalleryUrl {
+        self.url.clone()
+    }
+
+    fn title(&self) -> String {
+        self.title.clone()
+    }
+
+    fn title_jp(&self) -> String {
+        self.title_jp.clone().unwrap_or_else(|| self.title.clone())
+    }
+
+    fn tags(&self) -> &IndexMap<String, Vec<String>> {
+        &self.tags
+    }
+
+    fn pages(&self) -> usize {
+        self.pages.len()
+    }
+}
+
+impl GalleryInfo for GalleryEntity {
+    fn url(&self) -> EhGalleryUrl {
+        format!("https://exhentai.org/g/{}/{}", self.token, self.id)
+            .parse()
+            .unwrap()
+    }
+
+    fn title(&self) -> String {
+        self.title.clone()
+    }
+
+    fn title_jp(&self) -> String {
+        self.title_jp.clone().unwrap_or_else(|| self.title.clone())
+    }
+
+    fn tags(&self) -> &IndexMap<String, Vec<String>> {
+        &self.tags.0
+    }
+
+    fn pages(&self) -> usize {
+        self.pages as usize
+    }
 }
