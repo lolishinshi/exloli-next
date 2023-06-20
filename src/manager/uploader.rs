@@ -2,12 +2,14 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{anyhow, Result};
+use chrono::{Datelike, Utc};
 use futures::{stream, StreamExt};
 use regex::Regex;
 use reqwest::Client;
 use telegraph_rs::{html_to_node, Telegraph};
 use teloxide::prelude::Requester;
 use teloxide::types::MessageId;
+use teloxide::utils::html::{code_inline, link};
 use teloxide::Bot;
 use tokio::time;
 use tracing::{debug, error};
@@ -55,16 +57,15 @@ impl ExloliUploader {
         }
     }
 
-    /// 根据配置文件，扫描前 N 页的本子，并进行上传或者更新
+    /// 根据配置文件，扫描前 N 个本子，并进行上传或者更新
     #[tracing::instrument(skip(self))]
     async fn check(&self) -> Result<()> {
-        let stream = self.ehentai.search_iter(
-            &self.config.exhentai.search_params,
-            self.config.exhentai.search_pages,
-        );
+        let stream = self
+            .ehentai
+            .search_iter(&self.config.exhentai.search_params)
+            .take(self.config.exhentai.search_count);
         tokio::pin!(stream);
         while let Some(next) = stream.next().await {
-            // FIXME: update 不需要这么频繁
             self.check_and_update(&next).await?;
             self.check_and_upload(&next).await?;
         }
@@ -109,18 +110,35 @@ impl ExloliUploader {
     /// 检查指定画廊是否有更新，比如标题、标签
     #[tracing::instrument(skip(self))]
     pub async fn check_and_update(&self, gallery: &EhGalleryUrl) -> Result<()> {
-        let entity = GalleryEntity::get(gallery.id())
+        let entity = match GalleryEntity::get(gallery.id()).await? {
+            Some(v) => v,
+            _ => return Ok(()),
+        };
+        let message = MessageEntity::get_by_gallery_id(gallery.id())
             .await?
-            .ok_or(anyhow!("skip"))?;
+            .unwrap();
 
+        // 2 天内创建的画廊，每天都尝试更新
+        // 7 天内创建的画廊，每 3 天尝试更新
+        // 14 天内创建的画廊，每 7 天尝试更新
+        // 其余的，每 14 天尝试更新
+        let now = Utc::now().date_naive();
+        let seed = match now - message.publish_date {
+            d if d < chrono::Duration::days(2) => 1,
+            d if d < chrono::Duration::days(7) => 3,
+            d if d < chrono::Duration::days(14) => 7,
+            _ => 14,
+        };
+        if now.day() % seed != 0 {
+            return Ok(());
+        }
+
+        // 检查 tag 和标题是否有变化
         let gallery = self.ehentai.get_gallery(gallery).await?;
         if gallery.tags == entity.tags.0 && gallery.title == entity.title {
             return Ok(());
         }
 
-        let message = MessageEntity::get_by_gallery_id(gallery.url.id())
-            .await?
-            .unwrap();
         let text = self
             .create_message_text(&gallery, &message.telegraph)
             .await?;
@@ -248,15 +266,19 @@ impl ExloliUploader {
                 .collect::<Vec<_>>()
                 .join(" ");
             let tag = Regex::new("[-/· ]").unwrap().replace(&tag, "_");
-            text.push_str(&format!("<code>{}</code>: {}\n", pad_left(&ns, 6), tag))
+            text.push_str(&format!("{}: {}\n", code_inline(&pad_left(&ns, 6)), tag))
         }
 
         text.push_str(&format!(
-            "<code>  预览</code>: <a href=\"{}\">{}</a>\n",
-            v_htmlescape::escape(article),
-            gallery.title()
+            "{}: {}\n",
+            code_inline("  预览"),
+            link(article, &gallery.title()),
         ));
-        text.push_str(&format!("<code>原始地址</code>: {}", gallery.url().url()));
+        text.push_str(&format!(
+            "{}: {}",
+            code_inline("原始地址"),
+            gallery.url().url()
+        ));
 
         Ok(text)
     }

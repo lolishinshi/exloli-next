@@ -21,7 +21,7 @@ pub enum PublicCommand {
     #[command(description = "根据 E 站 URL 查询一个指定画廊")]
     Query(EhGalleryUrl),
     #[command(
-        description = "查询从最近 $1 天到 $2 天内的本子排名",
+        description = "查询从最近 $1 天到 $2 天内的本子排名（$1 < $2）",
         parse_with = "split"
     )]
     Best(u16, u16),

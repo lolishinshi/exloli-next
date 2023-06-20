@@ -3,16 +3,16 @@ CREATE TABLE page (
     gallery_id INTEGER NOT NULL,
     page INTEGER NOT NULL,
     image_id INTEGER NOT NULL,
-    PRIMARY (gallery_id, page)
+    PRIMARY KEY (gallery_id, page)
 );
 CREATE INDEX page_gallery_id_idx ON page (gallery_id);
 
 CREATE TABLE image (
     id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
     hash TEXT UNIQUE NOT NULL,
-    url TEXT NOT NULL,
+    url TEXT NOT NULL
 );
-CREATE INDEX image_hash_idx ON imagehash (hash);
+CREATE INDEX image_hash_idx ON image (hash);
 
 CREATE TABLE message (
     id INTEGER PRIMARY KEY NOT NULL,
@@ -45,6 +45,7 @@ CREATE TABLE gallery (
     id INTEGER PRIMARY KEY NOT NULL,
     token TEXT NOT NULL,
     title TEXT NOT NULL,
+    title_jp TEXT,
     tags TEXT NOT NULL,
     pages INTEGER NOT NULL,
     parent INTEGER,
@@ -54,10 +55,11 @@ CREATE TABLE gallery (
 -- NOTE: 此处通过暴力的字符串替换将 tuple[str, list[str]] 转换为了 dict[str, list[str]]
 INSERT INTO gallery (id, token, title, tags, pages, parent, deleted)
 SELECT gallery_id, token, title, REPLACE(REPLACE(REPLACE(REPLACE(tags, "[[", "{"), "]],[", "],"), ",[", ":["), "]]]", "]}"), upload_images, NULL, FALSE
-FROM ogallery;
+FROM ogallery
+GROUP BY gallery_id;
 
 INSERT INTO vote (user_id, poll_id, option, vote_time) SELECT user_id, poll_id, option, vote_time FROM user_vote;
-INSERT INTO poll (id, gallery_id, score) SELECT CAST(poll_id AS INTEGER), gallery_id, score FROM ogallery;
+INSERT INTO poll (id, gallery_id, score) SELECT CAST(poll_id AS INTEGER), gallery_id, score FROM ogallery GROUP BY poll_id;
 INSERT INTO message (id, gallery_id, telegraph, publish_date) SELECT message_id, gallery_id, telegraph, publish_date FROM ogallery;
 INSERT INTO image (hash, url) SELECT hash, url FROM image_hash;
 
@@ -68,3 +70,4 @@ DROP TABLE ogallery;
 DROP TABLE user_vote;
 DROP TABLE image_hash;
 DROP TABLE images;
+DROP TABLE __diesel_schema_migrations;

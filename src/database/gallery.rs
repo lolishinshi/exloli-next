@@ -1,5 +1,6 @@
 use std::ops::Deref;
 
+use chrono::NaiveDate;
 use indexmap::IndexMap;
 use sqlx::database::HasValueRef;
 use sqlx::error::BoxDynError;
@@ -97,6 +98,31 @@ impl GalleryEntity {
             .bind(id)
             .execute(&*DB)
             .await
+    }
+
+    /// 查询自指定日期以来的本子，结果按分数从高到低排列
+    /// 返回 分数、标题、消息 ID
+    #[tracing::instrument(level = Level::TRACE)]
+    pub async fn list(
+        start: NaiveDate,
+        end: NaiveDate,
+        limit: i64,
+        page: i64,
+    ) -> Result<Vec<(f32, String, i32)>> {
+        sqlx::query_as(
+            r#"SELECT poll.score, gallery.title, message.id
+            FROM gallery
+            JOIN poll ON poll.gallery_id = gallery.id
+            JOIN message ON message.gallery_id = gallery.id
+            WHERE publish_date.publish_date BETWEEN ? AND ?
+            ORDER BY poll.score DESC LIMIT ? OFFSET ?"#,
+        )
+        .bind(start)
+        .bind(end)
+        .bind(limit)
+        .bind(page * limit)
+        .fetch_all(&*DB)
+        .await
     }
 }
 

@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Result};
+use chrono::{Duration, Utc};
 use reqwest::{StatusCode, Url};
 use teloxide::dispatching::DpHandlerDescription;
 use teloxide::dptree::case;
@@ -7,6 +8,7 @@ use teloxide::types::{MessageId, Recipient};
 use tracing::instrument;
 
 use super::super::command::PublicCommand;
+use crate::bot::handlers::utils::{cmd_best_text, url_of};
 use crate::config::Config;
 use crate::database::{GalleryEntity, MessageEntity};
 use crate::ehentai::{EhGalleryUrl, GalleryInfo};
@@ -19,6 +21,13 @@ pub fn public_command_handler() -> Handler<'static, DependencyMap, Result<()>, D
         .branch(case![PublicCommand::Query(gallery)].endpoint(cmd_query))
         .branch(case![PublicCommand::Ping].endpoint(cmd_ping))
         .branch(case![PublicCommand::Update(url)].endpoint(cmd_update))
+        .branch(case![PublicCommand::Best(from, to)].endpoint(cmd_best))
+}
+
+#[instrument]
+async fn cmd_best(bot: Bot, msg: Message, (start, end): (u16, u16), cfg: Config) -> Result<()> {
+    let text = cmd_best_text(start as i64, end as i64, 0, cfg.telegram.channel_id).await?;
+    Ok(())
 }
 
 #[instrument]
@@ -58,13 +67,8 @@ async fn cmd_query(bot: Bot, msg: Message, cfg: Config, gallery: EhGalleryUrl) -
     match GalleryEntity::get(gallery.id()).await? {
         Some(gallery) => {
             let message = MessageEntity::get_by_gallery_id(gallery.id).await?.unwrap();
-            let url = match cfg.telegram.channel_id {
-                Recipient::Id(chatid) => Message::url_of(chatid, None, MessageId(message.id)),
-                Recipient::ChannelUsername(username) => {
-                    Message::url_of(ChatId(0), Some(&username[1..]), MessageId(message.id))
-                }
-            };
-            reply_to!(bot, msg, format!("{}", url.unwrap())).await?;
+            let url = url_of(cfg.telegram.channel_id, message.id);
+            reply_to!(bot, msg, url).await?;
         }
         None => {
             reply_to!(bot, msg, "未找到").await?;

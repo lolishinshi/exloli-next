@@ -23,10 +23,8 @@ pub struct ExHentai {
     pub cookie: String,
     /// 搜索参数
     pub search_params: Vec<(String, String)>,
-    /// 最大搜索页面
-    pub search_pages: usize,
-    /// 过期天数，超过这个天数的本子不会进行更新 tag 等操作
-    pub outdate: i64,
+    /// 最大遍历画廊数量
+    pub search_count: usize,
     /// 翻译文件的位置
     pub trans_file: String,
 }

@@ -9,7 +9,7 @@ use scraper::{Html, Selector};
 use serde::Serialize;
 use tokio::runtime::Handle;
 use tokio::task;
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 
 use super::error::*;
 use super::types::*;
@@ -41,8 +41,9 @@ macro_rules! selector {
 pub struct EhClient(pub Client);
 
 impl EhClient {
-    #[tracing::instrument]
+    #[tracing::instrument(skip(cookie))]
     pub async fn new(cookie: &str) -> Result<Self> {
+        info!("登陆 E 站中");
         let headers = headers! {
             ACCEPT => "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             ACCEPT_ENCODING => "gzip, deflate, br",
@@ -70,7 +71,7 @@ impl EhClient {
     }
 
     /// 使用指定参数查询符合要求的画廊列表
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, params))]
     pub async fn search_skip<T: Serialize + ?Sized + Debug>(
         &self,
         params: &T,
@@ -83,14 +84,15 @@ impl EhClient {
             .query(&[("next", next)]))?;
         let html = Html::parse_document(&resp.text().await?);
 
-        let selector = selector!("table.itg.gltc tr:not(:first-child)");
+        let selector = selector!("table.itg.gltc tr");
         let gl_list = html.select(&selector);
 
         let mut ret = vec![];
-        for gl in gl_list {
+        // 第一个是 header
+        for gl in gl_list.skip(1) {
             let title = gl.select_text("td.gl3c.glname a div.glink").unwrap();
             let url = gl.select_attr("td.gl3c.glname a", "href").unwrap();
-            debug!(url, title);
+            info!(url, title);
             ret.push(url.parse()?)
         }
 
@@ -98,16 +100,16 @@ impl EhClient {
     }
 
     /// 搜索前 N 页的本子，返回一个异步迭代器
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(skip(self, params))]
     pub fn search_iter<'a, T: Serialize + ?Sized + Debug>(
         &'a self,
         params: &'a T,
-        page: usize,
     ) -> impl Stream<Item = EhGalleryUrl> + 'a {
         stream::unfold(0, move |next| async move {
             match self.search_skip(params, next).await {
                 Ok(gls) => {
                     let next = gls.last().unwrap().id();
+                    info!(next);
                     Some((stream::iter(gls), next))
                 }
                 Err(e) => {
@@ -116,7 +118,6 @@ impl EhClient {
                 }
             }
         })
-        .take(page)
         .flatten()
     }
 
