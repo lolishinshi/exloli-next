@@ -26,6 +26,3 @@ toml = "0.7.4"
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }
 unicode-width = "0.1.10"
-
-[profile.dev.packages.sqlx-macros]
-opt-level = 3

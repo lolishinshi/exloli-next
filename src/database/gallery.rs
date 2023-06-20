@@ -152,3 +152,23 @@ impl Deref for TagsEntity {
         &self.0
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn gallery() {
+        let mut tags = IndexMap::new();
+        tags.insert(
+            "female".to_owned(),
+            vec!["dress".to_owned(), "maid".to_owned()],
+        );
+        GalleryEntity::create(123, "token", "test gallery", &None, &tags, 0, None)
+            .await
+            .unwrap();
+        let g = GalleryEntity::get(123).await.unwrap().unwrap();
+        assert_eq!(g.tags.0, tags);
+        assert!(GalleryEntity::check(123).await.unwrap());
+    }
+}

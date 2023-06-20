@@ -63,11 +63,11 @@ INSERT INTO poll (id, gallery_id, score) SELECT CAST(poll_id AS INTEGER), galler
 INSERT INTO message (id, gallery_id, telegraph, publish_date) SELECT message_id, gallery_id, telegraph, publish_date FROM ogallery;
 INSERT INTO image (hash, url) SELECT hash, url FROM image_hash;
 
-DROP INDEX gallery_id_index;
-DROP INDEX poll_id_index;
-DROP INDEX poll_index;
-DROP TABLE ogallery;
-DROP TABLE user_vote;
-DROP TABLE image_hash;
-DROP TABLE images;
-DROP TABLE __diesel_schema_migrations;
+DROP INDEX IF EXISTS  gallery_id_index;
+DROP INDEX IF EXISTS  poll_id_index;
+DROP INDEX IF EXISTS  poll_index;
+DROP TABLE IF EXISTS  ogallery;
+DROP TABLE IF EXISTS  user_vote;
+DROP TABLE IF EXISTS  image_hash;
+DROP TABLE IF EXISTS  images;
+DROP TABLE IF EXISTS __diesel_schema_migrations;
