@@ -1,14 +1,13 @@
 use anyhow::{anyhow, Result};
-use chrono::{Duration, Utc};
 use reqwest::{StatusCode, Url};
 use teloxide::dispatching::DpHandlerDescription;
 use teloxide::dptree::case;
 use teloxide::prelude::*;
-use teloxide::types::{MessageId, Recipient};
 use tracing::instrument;
 
-use super::super::command::PublicCommand;
+use crate::bot::command::PublicCommand;
 use crate::bot::handlers::utils::{cmd_best_text, url_of};
+use crate::bot::Bot;
 use crate::config::Config;
 use crate::database::{GalleryEntity, MessageEntity};
 use crate::ehentai::{EhGalleryUrl, GalleryInfo};
@@ -38,12 +37,9 @@ async fn cmd_update(bot: Bot, msg: Message, uploader: ExloliUploader, url: Url) 
         .and_then(|p| p.last())
         .and_then(|id| id.parse::<i32>().ok())
         .ok_or(anyhow!("Invalid URL"))?;
-    let msg_entity = MessageEntity::get(msg_id)
-        .await?
-        .ok_or(anyhow!("Message not found"))?;
-    let gl_entity = GalleryEntity::get(msg_entity.gallery_id)
-        .await?
-        .ok_or(anyhow!("Gallery not found"))?;
+    let msg_entity = MessageEntity::get(msg_id).await?.ok_or(anyhow!("Message not found"))?;
+    let gl_entity =
+        GalleryEntity::get(msg_entity.gallery_id).await?.ok_or(anyhow!("Gallery not found"))?;
 
     // 文章被删了，需要重新发布文章
     if reqwest::get(&msg_entity.telegraph).await?.status() == StatusCode::NOT_FOUND {
@@ -51,8 +47,7 @@ async fn cmd_update(bot: Bot, msg: Message, uploader: ExloliUploader, url: Url) 
     }
 
     uploader.check_and_update(&gl_entity.url()).await?;
-    bot.edit_message_text(msg.chat.id, reply.id, "更新完成")
-        .await?;
+    bot.edit_message_text(msg.chat.id, reply.id, "更新完成").await?;
     Ok(())
 }
 

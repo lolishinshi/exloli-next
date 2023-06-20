@@ -38,11 +38,7 @@ impl EhTagTransDB {
     pub fn trans<'s>(&'s self, namespace: &str, name: &'s str) -> Vec<&'s str> {
         for ns in &self.data {
             if ns.namespace == namespace {
-                let result = ns
-                    .data
-                    .get(name)
-                    .map(|info| info.name.as_str())
-                    .unwrap_or(name);
+                let result = ns.data.get(name).map(|info| info.name.as_str()).unwrap_or(name);
                 return result.split(" | ").collect::<Vec<_>>();
             }
         }

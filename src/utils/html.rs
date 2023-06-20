@@ -6,36 +6,22 @@ pub trait SelectorExtend {
 
     fn select_text(&self, selector: &str) -> Option<String> {
         let selector = Selector::parse(selector).unwrap();
-        self.select(&selector)
-            .next()?
-            .text()
-            .next()?
-            .to_string()
-            .into()
+        self.select(&selector).next()?.text().next()?.to_string().into()
     }
 
     fn select_texts(&self, selector: &str) -> Vec<String> {
         let selector = Selector::parse(selector).unwrap();
-        self.select(&selector)
-            .filter_map(|e| e.text().next().map(|t| t.to_string()))
-            .collect()
+        self.select(&selector).filter_map(|e| e.text().next().map(|t| t.to_string())).collect()
     }
 
     fn select_attr(&self, selector: &str, attr: &str) -> Option<String> {
         let selector = Selector::parse(selector).unwrap();
-        self.select(&selector)
-            .next()?
-            .value()
-            .attr(attr)?
-            .to_string()
-            .into()
+        self.select(&selector).next()?.value().attr(attr)?.to_string().into()
     }
 
     fn select_attrs(&self, selector: &str, attr: &str) -> Vec<String> {
         let selector = Selector::parse(selector).unwrap();
-        self.select(&selector)
-            .filter_map(|e| e.value().attr(attr).map(|t| t.to_string()))
-            .collect()
+        self.select(&selector).filter_map(|e| e.value().attr(attr).map(|t| t.to_string())).collect()
     }
 }
 

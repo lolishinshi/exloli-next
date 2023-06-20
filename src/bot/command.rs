@@ -11,6 +11,8 @@ pub enum AdminCommand {
     Upload(EhGalleryUrl),
     #[command(description = "删除所回复的画廊")]
     Delete,
+    #[command(description = "完全删除所回复的画廊，会导致重新上传")]
+    Erase,
 }
 
 #[derive(BotCommands, Clone, PartialEq, Debug)]

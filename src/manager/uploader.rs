@@ -1,7 +1,8 @@
+use std::backtrace::Backtrace;
 use std::sync::Arc;
 use std::time::Duration;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use chrono::{Datelike, Utc};
 use futures::{stream, StreamExt};
 use regex::Regex;
@@ -10,10 +11,10 @@ use telegraph_rs::{html_to_node, Telegraph};
 use teloxide::prelude::Requester;
 use teloxide::types::MessageId;
 use teloxide::utils::html::{code_inline, link};
-use teloxide::Bot;
 use tokio::time;
-use tracing::{debug, error};
+use tracing::{debug, error, info, Instrument};
 
+use crate::bot::Bot;
 use crate::config::Config;
 use crate::database::{GalleryEntity, ImageEntity, MessageEntity, PageEntity};
 use crate::ehentai::{EhClient, EhGallery, EhGalleryUrl, GalleryInfo};
@@ -38,38 +39,34 @@ impl ExloliUploader {
             .create()
             .await?;
         let trans = Arc::new(EhTagTransDB::new(&config.exhentai.trans_file));
-        Ok(Self {
-            ehentai,
-            config,
-            telegraph,
-            bot,
-            trans,
-        })
+        Ok(Self { ehentai, config, telegraph, bot, trans })
     }
 
     /// 每隔 interval 分钟检查一次
     pub async fn start(&self) {
         loop {
-            if let Err(e) = self.check().await {
-                error!("task loop error: {:?}", e);
-            }
+            self.check().await;
             time::sleep(Duration::from_secs(self.config.interval * 60)).await;
         }
     }
 
     /// 根据配置文件，扫描前 N 个本子，并进行上传或者更新
     #[tracing::instrument(skip(self))]
-    async fn check(&self) -> Result<()> {
+    async fn check(&self) {
         let stream = self
             .ehentai
             .search_iter(&self.config.exhentai.search_params)
             .take(self.config.exhentai.search_count);
         tokio::pin!(stream);
         while let Some(next) = stream.next().await {
-            self.check_and_update(&next).await?;
-            self.check_and_upload(&next).await?;
+            // 错误不要上抛，避免影响后续画廊
+            if let Err(err) = self.check_and_update(&next).await {
+                error!("check_and_update: {:?}\n{}", err, Backtrace::force_capture());
+            }
+            if let Err(err) = self.check_and_upload(&next).await {
+                error!("check_and_upload: {:?}\n{}", err, Backtrace::force_capture());
+            }
         }
-        Ok(())
     }
 
     /// 检查指定画廊是否已经上传，如果没有则进行上传
@@ -87,10 +84,7 @@ impl ExloliUploader {
         let article = self.publish_telegraph_article(&gallery).await?;
         // 发送消息
         let text = self.create_message_text(&gallery, &article.url).await?;
-        let msg = self
-            .bot
-            .send_message(self.config.telegram.channel_id.clone(), text)
-            .await?;
+        let msg = self.bot.send_message(self.config.telegram.channel_id.clone(), text).await?;
         // 数据入库
         MessageEntity::create(msg.id.0, gallery.url.id(), &article.url).await?;
         GalleryEntity::create(
@@ -114,9 +108,7 @@ impl ExloliUploader {
             Some(v) => v,
             _ => return Ok(()),
         };
-        let message = MessageEntity::get_by_gallery_id(gallery.id())
-            .await?
-            .unwrap();
+        let message = MessageEntity::get_by_gallery_id(gallery.id()).await?.unwrap();
 
         // 2 天内创建的画廊，每天都尝试更新
         // 7 天内创建的画廊，每 3 天尝试更新
@@ -139,16 +131,10 @@ impl ExloliUploader {
             return Ok(());
         }
 
-        let text = self
-            .create_message_text(&gallery, &message.telegraph)
-            .await?;
+        let text = self.create_message_text(&gallery, &message.telegraph).await?;
 
         self.bot
-            .edit_message_text(
-                self.config.telegram.channel_id.clone(),
-                MessageId(message.id),
-                text,
-            )
+            .edit_message_text(self.config.telegram.channel_id.clone(), MessageId(message.id), text)
             .await?;
 
         Ok(())
@@ -160,11 +146,7 @@ impl ExloliUploader {
         let article = self.publish_telegraph_article(gallery).await?;
         let text = self.create_message_text(gallery, &article.url).await?;
         self.bot
-            .edit_message_text(
-                self.config.telegram.channel_id.clone(),
-                MessageId(msg.id),
-                text,
-            )
+            .edit_message_text(self.config.telegram.channel_id.clone(), MessageId(msg.id), text)
             .await?;
         MessageEntity::update_telegraph(gallery.id, &article.url).await?;
         Ok(())
@@ -180,47 +162,54 @@ impl ExloliUploader {
         for page in &gallery.pages {
             match ImageEntity::get_by_hash(page.hash()).await? {
                 Some(img) => {
+                    // NOTE: 此处存在重复插入的可能，但是由于 PageEntity::create 使用 REPLACE，所以不影响
                     PageEntity::create(page.gallery_id(), page.page(), img.id).await?;
                 }
                 None => pages.push(page.clone()),
             }
         }
+        info!("需要下载&上传 {} 张图片", pages.len());
 
-        let (tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
+        let (tx, mut rx) = tokio::sync::mpsc::channel(self.config.threads_num);
         let client = self.ehentai.clone();
         let concurrent = self.config.threads_num;
 
         // E 站的图片是分布式存储的，所以并行下载
-        let downloader = tokio::spawn(async move {
-            let mut stream = stream::iter(pages)
-                .map(|page| {
-                    let client = client.clone();
-                    async move { (page.clone(), client.get_image_bytes(&page).await) }
-                })
-                .buffered(concurrent);
-
-            while let Some((page, bytes)) = stream.next().await {
-                debug!("finish download image: {:?}", page);
-                match bytes {
-                    Ok(bytes) => tx.send((page, bytes))?,
-                    Err(e) => error!("download {:?} error: {:?}", page, e),
+        let downloader = tokio::spawn(
+            async move {
+                let mut stream = stream::iter(pages)
+                    .map(|page| {
+                        let client = client.clone();
+                        async move { (page.clone(), client.get_image_bytes(&page).await) }
+                    })
+                    .buffered(concurrent);
+                while let Some((page, bytes)) = stream.next().await {
+                    debug!("已下载: {}", page.page());
+                    match bytes {
+                        Ok(bytes) => tx.send((page, bytes)).await?,
+                        Err(e) => error!("下载失败 {:?}：{:?}", page, e),
+                    }
                 }
+                Result::<()>::Ok(())
             }
-
-            Result::<()>::Ok(())
-        });
+            .in_current_span(),
+        );
 
         // 依次将图片上传到 telegraph，并插入 ImageEntity 和 PageEntity 记录
         let client = Client::builder().timeout(Duration::from_secs(30)).build()?;
-        let uploader = tokio::spawn(async move {
-            // TODO: 此处可以考虑一次上传多个图片，减少请求次数，避免触发 telegraph 的 rate limit
-            while let Some((page, bytes)) = rx.recv().await {
-                let resp = Telegraph::upload_with(&[ImageBytes(bytes)], &client).await?;
-                let image = ImageEntity::create(page.hash(), &resp[0].src).await?;
-                PageEntity::create(page.gallery_id(), page.page(), image.id).await?;
+        let uploader = tokio::spawn(
+            async move {
+                // TODO: 此处可以考虑一次上传多个图片，减少请求次数，避免触发 telegraph 的 rate limit
+                while let Some((page, bytes)) = rx.recv().await {
+                    let resp = Telegraph::upload_with(&[ImageBytes(bytes)], &client).await?;
+                    let image = ImageEntity::create(page.hash(), &resp[0].src).await?;
+                    PageEntity::create(page.gallery_id(), page.page(), image.id).await?;
+                    debug!("已上传: {}", page.page());
+                }
+                Result::<()>::Ok(())
             }
-            Result::<()>::Ok(())
-        });
+            .in_current_span(),
+        );
 
         let (first, second) = tokio::try_join!(downloader, uploader)?;
         first?;
@@ -257,28 +246,22 @@ impl ExloliUploader {
     ) -> Result<String> {
         // 首先，将 tag 翻译
         // 并整理成 namespace: #tag1 #tag2 #tag3 的格式
+        let re = Regex::new("[-/· ]").unwrap();
         let tags = self.trans.trans_tags(gallery.tags());
         let mut text = String::new();
         for (ns, tag) in tags {
             let tag = tag
                 .iter()
-                .map(|s| format!("#{}", s))
+                .map(|s| format!("#{}", re.replace_all(s, "_")))
                 .collect::<Vec<_>>()
                 .join(" ");
-            let tag = Regex::new("[-/· ]").unwrap().replace(&tag, "_");
             text.push_str(&format!("{}: {}\n", code_inline(&pad_left(&ns, 6)), tag))
         }
 
-        text.push_str(&format!(
-            "{}: {}\n",
-            code_inline("  预览"),
-            link(article, &gallery.title()),
-        ));
-        text.push_str(&format!(
-            "{}: {}",
-            code_inline("原始地址"),
-            gallery.url().url()
-        ));
+        text.push_str(
+            &format!("{}: {}\n", code_inline("  预览"), link(article, &gallery.title()),),
+        );
+        text.push_str(&format!("{}: {}", code_inline("原始地址"), gallery.url().url()));
 
         Ok(text)
     }

@@ -17,13 +17,7 @@ pub async fn get_connection_pool(url: &str) -> SqlitePool {
         .foreign_keys(false)
         .filename(url)
         .create_if_missing(true);
-    let pool = SqlitePoolOptions::new()
-        .connect_with(options)
-        .await
-        .expect("数据库连接失败");
-    sqlx::migrate!("./migrations")
-        .run(&pool)
-        .await
-        .expect("数据库迁移失败");
+    let pool = SqlitePoolOptions::new().connect_with(options).await.expect("数据库连接失败");
+    sqlx::migrate!("./migrations").run(&pool).await.expect("数据库迁移失败");
     pool
 }

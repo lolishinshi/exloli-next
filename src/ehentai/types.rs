@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::str::FromStr;
 
 use indexmap::IndexMap;
@@ -38,6 +39,12 @@ impl FromStr for EhGalleryUrl {
     }
 }
 
+impl Display for EhGallery {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.url.0)
+    }
+}
+
 /// 画廊页面地址，格式为 https://exhentai.org/s/03af734602/1932743-1
 #[derive(Debug, Clone, PartialEq)]
 pub struct EhPageUrl(pub(super) String);
@@ -62,6 +69,12 @@ impl EhPageUrl {
     pub fn page(&self) -> i32 {
         let last = self.0.split('/').last().unwrap();
         last.split('-').nth(1).unwrap().parse().unwrap()
+    }
+}
+
+impl Display for EhPageUrl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
     }
 }
 
@@ -117,9 +130,7 @@ impl GalleryInfo for EhGallery {
 
 impl GalleryInfo for GalleryEntity {
     fn url(&self) -> EhGalleryUrl {
-        format!("https://exhentai.org/g/{}/{}", self.token, self.id)
-            .parse()
-            .unwrap()
+        format!("https://exhentai.org/g/{}/{}", self.token, self.id).parse().unwrap()
     }
 
     fn title(&self) -> String {

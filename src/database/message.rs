@@ -18,7 +18,7 @@ pub struct MessageEntity {
 }
 
 impl MessageEntity {
-    #[tracing::instrument(level = Level::TRACE)]
+    #[tracing::instrument(level = Level::DEBUG)]
     pub async fn create(id: i32, gallery_id: i32, telegraph: &str) -> Result<SqliteQueryResult> {
         sqlx::query(
             "REPLACE INTO message (id, gallery_id, telegraph, publish_date) VALUES (?, ?, ?, ?)",
@@ -31,15 +31,17 @@ impl MessageEntity {
         .await
     }
 
-    #[tracing::instrument(level = Level::TRACE)]
+    #[tracing::instrument(level = Level::DEBUG)]
     pub async fn get(id: i32) -> Result<Option<MessageEntity>> {
-        sqlx::query_as("SELECT * FROM message WHERE id = ?")
-            .bind(id)
-            .fetch_optional(&*DB)
-            .await
+        sqlx::query_as("SELECT * FROM message WHERE id = ?").bind(id).fetch_optional(&*DB).await
     }
 
-    #[tracing::instrument(level = Level::TRACE)]
+    #[tracing::instrument(level = Level::DEBUG)]
+    pub async fn delete(id: i32) -> Result<SqliteQueryResult> {
+        sqlx::query("DELETE FROM message WHERE id = ?").bind(id).execute(&*DB).await
+    }
+
+    #[tracing::instrument(level = Level::DEBUG)]
     pub async fn get_by_gallery_id(gallery_id: i32) -> Result<Option<MessageEntity>> {
         sqlx::query_as("SELECT * FROM message WHERE gallery_id = ?")
             .bind(gallery_id)
@@ -47,7 +49,7 @@ impl MessageEntity {
             .await
     }
 
-    #[tracing::instrument(level = Level::TRACE)]
+    #[tracing::instrument(level = Level::DEBUG)]
     pub async fn update_telegraph(id: i32, telegraph: &str) -> Result<SqliteQueryResult> {
         sqlx::query("UPDATE message SET telegraph = ? WHERE id = ?")
             .bind(telegraph)

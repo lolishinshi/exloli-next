@@ -1,6 +1,7 @@
 use teloxide::prelude::*;
 
 use super::handlers::*;
+use super::Bot;
 use crate::config::Config;
 use crate::manager::uploader::ExloliUploader;
 

@@ -25,9 +25,7 @@ macro_rules! headers {
 
 macro_rules! send {
     ($e:expr) => {
-        $e.send()
-            .await
-            .and_then(reqwest::Response::error_for_status)
+        $e.send().await.and_then(reqwest::Response::error_for_status)
     };
 }
 
@@ -77,11 +75,8 @@ impl EhClient {
         params: &T,
         next: i32,
     ) -> Result<Vec<EhGalleryUrl>> {
-        let resp = send!(self
-            .0
-            .get("https://exhentai.org")
-            .query(params)
-            .query(&[("next", next)]))?;
+        let resp =
+            send!(self.0.get("https://exhentai.org").query(params).query(&[("next", next)]))?;
         let html = Html::parse_document(&resp.text().await?);
 
         let selector = selector!("table.itg.gltc tr");
@@ -135,17 +130,13 @@ impl EhClient {
         let mut tags = IndexMap::new();
         let selector = selector!("div#taglist tr");
         for ele in html.select(&selector) {
-            let namespace = ele
-                .select_text("td.tc")
-                .unwrap()
-                .trim_matches(':')
-                .to_string();
+            let namespace = ele.select_text("td.tc").unwrap().trim_matches(':').to_string();
             let tag = ele.select_texts("td div a");
             tags.insert(namespace, tag);
         }
 
         // 每一页的 URL
-        let mut pages = html.select_attrs("div.gdtm a", "href");
+        let mut pages = html.select_attrs("div.gdtl a", "href");
         while let Some(next_page) = html.select_attr("table.ptt td:last-child", "href") {
             debug!(next_page);
             // FIXME: 此处的迷惑行为，不知道有没有更好的解决办法
@@ -166,14 +157,7 @@ impl EhClient {
 
         let pages = pages.into_iter().map(EhPageUrl).collect();
 
-        Ok(EhGallery {
-            url: url.clone(),
-            title,
-            title_jp,
-            parent,
-            tags,
-            pages,
-        })
+        Ok(EhGallery { url: url.clone(), title, title_jp, parent, tags, pages })
     }
 
     /// 获取画廊的某一页的图片实际地址

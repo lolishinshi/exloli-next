@@ -100,6 +100,12 @@ impl GalleryEntity {
             .await
     }
 
+    /// 彻底删除一个画廊
+    #[tracing::instrument(level = Level::TRACE)]
+    pub async fn delete(id: i32) -> Result<SqliteQueryResult> {
+        sqlx::query("DELETE FROM gallery WHERE id = ?").bind(id).execute(&*DB).await
+    }
+
     /// 查询自指定日期以来的本子，结果按分数从高到低排列
     /// 返回 分数、标题、消息 ID
     #[tracing::instrument(level = Level::TRACE)]
@@ -160,13 +166,8 @@ mod tests {
     #[tokio::test]
     async fn gallery() {
         let mut tags = IndexMap::new();
-        tags.insert(
-            "female".to_owned(),
-            vec!["dress".to_owned(), "maid".to_owned()],
-        );
-        GalleryEntity::create(123, "token", "test gallery", &None, &tags, 0, None)
-            .await
-            .unwrap();
+        tags.insert("female".to_owned(), vec!["dress".to_owned(), "maid".to_owned()]);
+        GalleryEntity::create(123, "token", "test gallery", &None, &tags, 0, None).await.unwrap();
         let g = GalleryEntity::get(123).await.unwrap().unwrap();
         assert_eq!(g.tags.0, tags);
         assert!(GalleryEntity::check(123).await.unwrap());

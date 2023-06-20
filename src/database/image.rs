@@ -26,7 +26,7 @@ pub struct ImageEntity {
 
 impl ImageEntity {
     /// 创建一条记录
-    #[tracing::instrument(level = Level::TRACE)]
+    #[tracing::instrument(level = Level::DEBUG)]
     pub async fn create(hash: &str, url: &str) -> Result<Self> {
         sqlx::query_as("INSERT INTO image (hash, url) VALUES (?, ?) RETURNING *")
             .bind(hash)
@@ -36,12 +36,9 @@ impl ImageEntity {
     }
 
     /// 根据图片 hash 获取一张图片
-    #[tracing::instrument(level = Level::TRACE)]
+    #[tracing::instrument(level = Level::DEBUG)]
     pub async fn get_by_hash(hash: &str) -> Result<Option<ImageEntity>> {
-        sqlx::query_as("SELECT * FROM image WHERE hash = ?")
-            .bind(hash)
-            .fetch_optional(&*DB)
-            .await
+        sqlx::query_as("SELECT * FROM image WHERE hash = ?").bind(hash).fetch_optional(&*DB).await
     }
 
     /// 从指定画廊里随机获取一张图片
@@ -49,7 +46,7 @@ impl ImageEntity {
     /// 画廊要求：
     /// - 分数大于 80
     /// - 作者只有 1 位
-    #[tracing::instrument(level = Level::TRACE)]
+    #[tracing::instrument(level = Level::DEBUG)]
     pub async fn get_challenge() -> Result<Option<Self>> {
         sqlx::query_as(
             r#"SELECT * FROM image
@@ -66,7 +63,7 @@ impl ImageEntity {
     }
 
     /// 获取指定画廊的所有图片，并且按页码排列
-    #[tracing::instrument(level = Level::TRACE)]
+    #[tracing::instrument(level = Level::DEBUG)]
     pub async fn get_by_gallery_id(gallery_id: i32) -> Result<Vec<Self>> {
         sqlx::query_as("SELECT * FROM image JOIN page ON page.image_id = image.id WHERE page.gallery_id = ? ORDER BY page.page")
             .bind(gallery_id)
@@ -77,9 +74,9 @@ impl ImageEntity {
 
 impl PageEntity {
     /// 创建一条记录
-    #[tracing::instrument(level = Level::TRACE)]
+    #[tracing::instrument(level = Level::DEBUG)]
     pub async fn create(gallery_id: i32, page: i32, image_id: i32) -> Result<SqliteQueryResult> {
-        sqlx::query("INSERT INTO page (gallery_id, page, image_id) VALUES (?, ?, ?)")
+        sqlx::query("REPLACE INTO page (gallery_id, page, image_id) VALUES (?, ?, ?)")
             .bind(gallery_id)
             .bind(page)
             .bind(image_id)
