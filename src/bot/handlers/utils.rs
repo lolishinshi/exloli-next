@@ -50,7 +50,7 @@ pub fn url_of(channel: Recipient, id: i32) -> Url {
     match channel {
         Recipient::Id(chat_id) => Message::url_of(chat_id, None, MessageId(id)).unwrap(),
         Recipient::ChannelUsername(username) => {
-            Message::url_of(ChatId(0), Some(&username[1..]), MessageId(id)).unwrap()
+            Message::url_of(ChatId(-1000000000000), Some(&username[1..]), MessageId(id)).unwrap()
         }
     }
 }

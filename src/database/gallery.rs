@@ -12,7 +12,7 @@ use tracing::Level;
 use super::db::DB;
 
 // 此处使用 IndexMap，因为我们需要保证相同的 tag 每次序列化的结果都是一样的
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct TagsEntity(pub IndexMap<String, Vec<String>>);
 
 #[derive(Debug, FromRow)]
@@ -26,6 +26,7 @@ pub struct GalleryEntity {
     /// 画廊日文标题
     pub title_jp: Option<String>,
     /// JSON 格式的画廊标签
+    /// 旧画廊可能为空
     pub tags: TagsEntity,
     /// 页面数量
     pub pages: i32,
@@ -47,7 +48,7 @@ impl GalleryEntity {
         pages: i32,
         parent: Option<i32>,
     ) -> Result<SqliteQueryResult> {
-        sqlx::query("INSERT INTO gallery (id, token, title, title_jp, tags, pages, parent, deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+        sqlx::query("REPLACE INTO gallery (id, token, title, title_jp, tags, pages, parent, deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
             .bind(id)
             .bind(token)
             .bind(title)
@@ -147,7 +148,11 @@ impl<'q> Decode<'q, Sqlite> for TagsEntity {
         value: <Sqlite as HasValueRef<'q>>::ValueRef,
     ) -> std::result::Result<Self, BoxDynError> {
         let str = <String as Decode<Sqlite>>::decode(value)?;
-        Ok(TagsEntity(serde_json::from_str(&str)?))
+        if str.is_empty() {
+            Ok(TagsEntity(IndexMap::new()))
+        } else {
+            Ok(TagsEntity(serde_json::from_str(&str)?))
+        }
     }
 }
 

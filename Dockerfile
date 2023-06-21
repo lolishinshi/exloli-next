@@ -5,8 +5,9 @@ COPY . .
 RUN cargo install --path .
 
 FROM debian:bullseye
+ENV RUST_BACKTRACE=full
 WORKDIR /app
-RUN apt-get update && apt-get install -y sqlite3 libssl1.1 ca-certificates libxml2 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y sqlite3 libssl1.1 ca-certificates && rm -rf /var/lib/apt/lists/*
 RUN echo '/etc/ssl/openssl.cnf \
 system_default = system_default_sect \
 \

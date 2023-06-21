@@ -3,7 +3,7 @@ use reqwest::{StatusCode, Url};
 use teloxide::dispatching::DpHandlerDescription;
 use teloxide::dptree::case;
 use teloxide::prelude::*;
-use tracing::instrument;
+use tracing::info;
 
 use crate::bot::command::PublicCommand;
 use crate::bot::handlers::cmd_best_keyboard;
@@ -25,6 +25,7 @@ pub fn public_command_handler() -> Handler<'static, DependencyMap, Result<()>, D
 }
 
 async fn cmd_best(bot: Bot, msg: Message, (end, start): (u16, u16), cfg: Config) -> Result<()> {
+    info!("{:?}: /best", msg.from());
     let text = cmd_best_text(start as i32, end as i32, 0, cfg.telegram.channel_id).await?;
     let keyboard = cmd_best_keyboard(start as i32, end as i32, 0);
     reply_to!(bot, msg, text).reply_markup(keyboard).await?;
@@ -32,6 +33,7 @@ async fn cmd_best(bot: Bot, msg: Message, (end, start): (u16, u16), cfg: Config)
 }
 
 async fn cmd_update(bot: Bot, msg: Message, uploader: ExloliUploader, url: Url) -> Result<()> {
+    info!("{:?}: /update", msg.from());
     let reply = reply_to!(bot, msg, "更新中……").await?;
     let msg_id = url
         .path_segments()
@@ -47,19 +49,19 @@ async fn cmd_update(bot: Bot, msg: Message, uploader: ExloliUploader, url: Url) 
         uploader.republish(&gl_entity, &msg_entity).await?;
     }
 
-    uploader.try_update(&gl_entity.url()).await?;
+    uploader.try_update(&gl_entity.url(), false).await?;
     bot.edit_message_text(msg.chat.id, reply.id, "更新完成").await?;
     Ok(())
 }
 
-#[instrument(skip(bot, msg))]
 async fn cmd_ping(bot: Bot, msg: Message) -> Result<()> {
+    info!("{:?}: /ping", msg.from());
     reply_to!(bot, msg, "pong~").await?;
     Ok(())
 }
 
-#[instrument(skip(bot, msg, cfg))]
 async fn cmd_query(bot: Bot, msg: Message, cfg: Config, gallery: EhGalleryUrl) -> Result<()> {
+    info!("{:?}: /query", msg.from());
     match GalleryEntity::get(gallery.id()).await? {
         Some(gallery) => {
             let message = MessageEntity::get_by_gallery_id(gallery.id).await?.unwrap();

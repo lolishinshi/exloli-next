@@ -130,7 +130,7 @@ impl GalleryInfo for EhGallery {
 
 impl GalleryInfo for GalleryEntity {
     fn url(&self) -> EhGalleryUrl {
-        format!("https://exhentai.org/g/{}/{}", self.token, self.id).parse().unwrap()
+        format!("https://exhentai.org/g/{}/{}", self.id, self.token).parse().unwrap()
     }
 
     fn title(&self) -> String {

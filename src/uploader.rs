@@ -62,10 +62,10 @@ impl ExloliUploader {
         tokio::pin!(stream);
         while let Some(next) = stream.next().await {
             // 错误不要上抛，避免影响后续画廊
-            if let Err(err) = self.try_update(&next).await {
+            if let Err(err) = self.try_update(&next, true).await {
                 error!("check_and_update: {:?}\n{}", err, Backtrace::force_capture());
             }
-            if let Err(err) = self.try_upload(&next).await {
+            if let Err(err) = self.try_upload(&next, true).await {
                 error!("check_and_upload: {:?}\n{}", err, Backtrace::force_capture());
             }
         }
@@ -75,8 +75,8 @@ impl ExloliUploader {
     ///
     /// 为了避免绕晕自己，这次不考虑父子画廊，只要 id 不同就视为新画廊，只要是新画廊就进行上传
     #[tracing::instrument(skip(self))]
-    pub async fn try_upload(&self, gallery: &EhGalleryUrl) -> Result<()> {
-        if GalleryEntity::check(gallery.id()).await? {
+    pub async fn try_upload(&self, gallery: &EhGalleryUrl, check: bool) -> Result<()> {
+        if check && GalleryEntity::check(gallery.id()).await? {
             return Ok(());
         }
 
@@ -105,7 +105,7 @@ impl ExloliUploader {
 
     /// 检查指定画廊是否有更新，比如标题、标签
     #[tracing::instrument(skip(self))]
-    pub async fn try_update(&self, gallery: &EhGalleryUrl) -> Result<()> {
+    pub async fn try_update(&self, gallery: &EhGalleryUrl, check: bool) -> Result<()> {
         let entity = match GalleryEntity::get(gallery.id()).await? {
             Some(v) => v,
             _ => return Ok(()),
@@ -123,7 +123,7 @@ impl ExloliUploader {
             d if d < chrono::Duration::days(14) => 7,
             _ => 14,
         };
-        if now.day() % seed != 0 {
+        if check && now.day() % seed != 0 {
             return Ok(());
         }
 

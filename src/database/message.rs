@@ -43,7 +43,7 @@ impl MessageEntity {
 
     #[tracing::instrument(level = Level::DEBUG)]
     pub async fn get_by_gallery_id(gallery_id: i32) -> Result<Option<MessageEntity>> {
-        sqlx::query_as("SELECT * FROM message WHERE gallery_id = ?")
+        sqlx::query_as("SELECT * FROM message WHERE gallery_id = ? ORDER BY publish_date DESC")
             .bind(gallery_id)
             .fetch_optional(&*DB)
             .await

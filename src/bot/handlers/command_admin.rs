@@ -30,12 +30,13 @@ async fn cmd_upload(
 ) -> Result<()> {
     info!("{:?}: /upload {}", msg.from(), gallery);
     let reply = reply_to!(bot, msg, "上传中……").await?;
-    uploader.try_upload(&gallery).await?;
+    uploader.try_upload(&gallery, false).await?;
     bot.edit_message_text(msg.chat.id, reply.id, "上传完成").await?;
     Ok(())
 }
 
 async fn cmd_delete(bot: Bot, msg: Message, command: AdminCommand) -> Result<()> {
+    info!("{:?}: /delete", msg.from());
     let reply_to = msg.reply_to_message().context("没有回复消息")?;
 
     let channel = reply_to.forward_from_chat().context("该消息没有回复画廊")?;
