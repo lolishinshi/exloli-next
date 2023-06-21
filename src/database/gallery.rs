@@ -141,6 +141,13 @@ impl GalleryEntity {
         .fetch_all(&*DB)
         .await
     }
+
+    /// 列出所有画廊，按发布日期倒序
+    pub async fn all() -> Result<Vec<Self>> {
+        sqlx::query_as("SELECT * FROM gallery ORDER BY id DESC WHERE deleted = FALSE")
+            .fetch_all(&*DB)
+            .await
+    }
 }
 
 impl<'q> Decode<'q, Sqlite> for TagsEntity {

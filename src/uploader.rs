@@ -268,3 +268,17 @@ impl ExloliUploader {
         Ok(text)
     }
 }
+
+impl ExloliUploader {
+    /// 重新扫描并更新所有历史画廊，
+    pub async fn update_history_gallery(&self) -> Result<()> {
+        let galleries = GalleryEntity::all().await?;
+        for gallery in galleries {
+            if PageEntity::count(gallery.id) != 0 {
+                continue;
+            }
+            let gallery = self.ehentai.get_gallery(&gallery.url()).await?;
+        }
+        Ok(())
+    }
+}

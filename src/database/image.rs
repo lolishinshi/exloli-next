@@ -84,4 +84,12 @@ impl PageEntity {
             .execute(&*DB)
             .await
     }
+
+    /// 统计某个画廊的页面数量
+    pub async fn count(gallery_id: i32) -> Result<i32> {
+        sqlx::query_scalar("SELECT COUNT(*) FROM page WHERE gallery_id = ?")
+            .bind(gallery_id)
+            .fetch_one(&*DB)
+            .await
+    }
 }
