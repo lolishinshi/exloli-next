@@ -6,13 +6,14 @@ use teloxide::prelude::*;
 use tracing::instrument;
 
 use crate::bot::command::PublicCommand;
+use crate::bot::handlers::cmd_best_keyboard;
 use crate::bot::handlers::utils::{cmd_best_text, url_of};
 use crate::bot::Bot;
 use crate::config::Config;
 use crate::database::{GalleryEntity, MessageEntity};
 use crate::ehentai::{EhGalleryUrl, GalleryInfo};
-use crate::manager::uploader::ExloliUploader;
 use crate::reply_to;
+use crate::uploader::ExloliUploader;
 
 pub fn public_command_handler() -> Handler<'static, DependencyMap, Result<()>, DpHandlerDescription>
 {
@@ -23,13 +24,13 @@ pub fn public_command_handler() -> Handler<'static, DependencyMap, Result<()>, D
         .branch(case![PublicCommand::Best(from, to)].endpoint(cmd_best))
 }
 
-#[instrument]
-async fn cmd_best(bot: Bot, msg: Message, (start, end): (u16, u16), cfg: Config) -> Result<()> {
-    let text = cmd_best_text(start as i64, end as i64, 0, cfg.telegram.channel_id).await?;
+async fn cmd_best(bot: Bot, msg: Message, (end, start): (u16, u16), cfg: Config) -> Result<()> {
+    let text = cmd_best_text(start as i32, end as i32, 0, cfg.telegram.channel_id).await?;
+    let keyboard = cmd_best_keyboard(start as i32, end as i32, 0);
+    reply_to!(bot, msg, text).reply_markup(keyboard).await?;
     Ok(())
 }
 
-#[instrument]
 async fn cmd_update(bot: Bot, msg: Message, uploader: ExloliUploader, url: Url) -> Result<()> {
     let reply = reply_to!(bot, msg, "更新中……").await?;
     let msg_id = url
@@ -46,7 +47,7 @@ async fn cmd_update(bot: Bot, msg: Message, uploader: ExloliUploader, url: Url) 
         uploader.republish(&gl_entity, &msg_entity).await?;
     }
 
-    uploader.check_and_update(&gl_entity.url()).await?;
+    uploader.try_update(&gl_entity.url()).await?;
     bot.edit_message_text(msg.chat.id, reply.id, "更新完成").await?;
     Ok(())
 }

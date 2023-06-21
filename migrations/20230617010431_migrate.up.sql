@@ -8,7 +8,7 @@ CREATE TABLE page (
 CREATE INDEX page_gallery_id_idx ON page (gallery_id);
 
 CREATE TABLE image (
-    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    id INTEGER PRIMARY KEY NOT NULL,
     hash TEXT UNIQUE NOT NULL,
     url TEXT NOT NULL
 );
@@ -61,13 +61,12 @@ GROUP BY gallery_id;
 INSERT INTO vote (user_id, poll_id, option, vote_time) SELECT user_id, poll_id, option, vote_time FROM user_vote;
 INSERT INTO poll (id, gallery_id, score) SELECT CAST(poll_id AS INTEGER), gallery_id, score FROM ogallery GROUP BY poll_id;
 INSERT INTO message (id, gallery_id, telegraph, publish_date) SELECT message_id, gallery_id, telegraph, publish_date FROM ogallery;
-INSERT INTO image (hash, url) SELECT hash, url FROM image_hash;
 
 DROP INDEX IF EXISTS  gallery_id_index;
 DROP INDEX IF EXISTS  poll_id_index;
 DROP INDEX IF EXISTS  poll_index;
 DROP TABLE IF EXISTS  ogallery;
 DROP TABLE IF EXISTS  user_vote;
-DROP TABLE IF EXISTS  image_hash;
-DROP TABLE IF EXISTS  images;
 DROP TABLE IF EXISTS __diesel_schema_migrations;
+ALTER TABLE image_hash RENAME TO _del_image_hash;
+ALTER TABLE images RENAME TO _del_images;

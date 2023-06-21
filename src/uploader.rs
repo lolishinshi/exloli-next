@@ -45,8 +45,10 @@ impl ExloliUploader {
     /// 每隔 interval 分钟检查一次
     pub async fn start(&self) {
         loop {
+            info!("开始扫描 E 站 本子");
             self.check().await;
-            time::sleep(Duration::from_secs(self.config.interval * 60)).await;
+            info!("扫描完毕，等待 {:?} 后继续", self.config.interval);
+            time::sleep(self.config.interval).await;
         }
     }
 
@@ -60,10 +62,10 @@ impl ExloliUploader {
         tokio::pin!(stream);
         while let Some(next) = stream.next().await {
             // 错误不要上抛，避免影响后续画廊
-            if let Err(err) = self.check_and_update(&next).await {
+            if let Err(err) = self.try_update(&next).await {
                 error!("check_and_update: {:?}\n{}", err, Backtrace::force_capture());
             }
-            if let Err(err) = self.check_and_upload(&next).await {
+            if let Err(err) = self.try_upload(&next).await {
                 error!("check_and_upload: {:?}\n{}", err, Backtrace::force_capture());
             }
         }
@@ -73,7 +75,7 @@ impl ExloliUploader {
     ///
     /// 为了避免绕晕自己，这次不考虑父子画廊，只要 id 不同就视为新画廊，只要是新画廊就进行上传
     #[tracing::instrument(skip(self))]
-    pub async fn check_and_upload(&self, gallery: &EhGalleryUrl) -> Result<()> {
+    pub async fn try_upload(&self, gallery: &EhGalleryUrl) -> Result<()> {
         if GalleryEntity::check(gallery.id()).await? {
             return Ok(());
         }
@@ -103,7 +105,7 @@ impl ExloliUploader {
 
     /// 检查指定画廊是否有更新，比如标题、标签
     #[tracing::instrument(skip(self))]
-    pub async fn check_and_update(&self, gallery: &EhGalleryUrl) -> Result<()> {
+    pub async fn try_update(&self, gallery: &EhGalleryUrl) -> Result<()> {
         let entity = match GalleryEntity::get(gallery.id()).await? {
             Some(v) => v,
             _ => return Ok(()),
@@ -200,10 +202,10 @@ impl ExloliUploader {
         let uploader = tokio::spawn(
             async move {
                 // TODO: 此处可以考虑一次上传多个图片，减少请求次数，避免触发 telegraph 的 rate limit
-                while let Some((page, bytes)) = rx.recv().await {
+                while let Some((page, (fileindex, bytes))) = rx.recv().await {
                     let resp = Telegraph::upload_with(&[ImageBytes(bytes)], &client).await?;
-                    let image = ImageEntity::create(page.hash(), &resp[0].src).await?;
-                    PageEntity::create(page.gallery_id(), page.page(), image.id).await?;
+                    ImageEntity::create(fileindex, page.hash(), &resp[0].src).await?;
+                    PageEntity::create(page.gallery_id(), page.page(), fileindex).await?;
                     debug!("已上传: {}", page.page());
                 }
                 Result::<()>::Ok(())

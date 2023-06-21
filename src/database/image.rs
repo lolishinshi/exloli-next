@@ -11,14 +11,14 @@ pub struct PageEntity {
     /// 页面编号
     pub page: i32,
     /// 图片 id
-    pub image_id: i32,
+    pub image_id: u32,
 }
 
 #[derive(sqlx::FromRow, Debug)]
 pub struct ImageEntity {
-    /// 图片的自增 ID
-    pub id: i32,
-    /// 图片哈希
+    /// 图片在 E 站的 fileindex
+    pub id: u32,
+    /// 图片的 sha1sum 前 10 位
     pub hash: String,
     /// 相对 https://telegra.ph 的图片 URL
     pub url: String,
@@ -27,11 +27,12 @@ pub struct ImageEntity {
 impl ImageEntity {
     /// 创建一条记录
     #[tracing::instrument(level = Level::DEBUG)]
-    pub async fn create(hash: &str, url: &str) -> Result<Self> {
-        sqlx::query_as("INSERT INTO image (hash, url) VALUES (?, ?) RETURNING *")
+    pub async fn create(id: u32, hash: &str, url: &str) -> Result<SqliteQueryResult> {
+        sqlx::query("INSERT INTO image (id, hash, url) VALUES (?, ?, ?)")
+            .bind(id)
             .bind(hash)
             .bind(url)
-            .fetch_one(&*DB)
+            .execute(&*DB)
             .await
     }
 
@@ -75,7 +76,7 @@ impl ImageEntity {
 impl PageEntity {
     /// 创建一条记录，有冲突时则忽略
     #[tracing::instrument(level = Level::DEBUG)]
-    pub async fn create(gallery_id: i32, page: i32, image_id: i32) -> Result<SqliteQueryResult> {
+    pub async fn create(gallery_id: i32, page: i32, image_id: u32) -> Result<SqliteQueryResult> {
         sqlx::query("INSERT OR IGNORE INTO page (gallery_id, page, image_id) VALUES (?, ?, ?)")
             .bind(gallery_id)
             .bind(page)

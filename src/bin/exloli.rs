@@ -4,7 +4,7 @@ use anyhow::Result;
 use exloli_next::bot::start_dispatcher;
 use exloli_next::config::Config;
 use exloli_next::ehentai::EhClient;
-use exloli_next::manager::uploader::ExloliUploader;
+use exloli_next::uploader::ExloliUploader;
 use teloxide::prelude::*;
 use teloxide::types::ParseMode;
 

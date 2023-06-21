@@ -1,0 +1,8 @@
+version: "3.3"
+services:
+  skrman:
+    image: "aloxaf/exloli-next:0.1.0"
+    container_name: exloli
+    volumes:
+      - ./:/app
+    restart: unless-stopped

@@ -8,6 +8,7 @@ pub use callback_query::*;
 pub use command_admin::*;
 pub use command_public::*;
 pub use custom_poll::*;
+pub use utils::*;
 
 #[macro_export]
 macro_rules! reply_to {

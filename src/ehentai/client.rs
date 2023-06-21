@@ -3,13 +3,15 @@ use std::time::Duration;
 
 use futures::prelude::*;
 use indexmap::IndexMap;
+use once_cell::sync::Lazy;
+use regex::Regex;
 use reqwest::header::*;
 use reqwest::Client;
 use scraper::{Html, Selector};
 use serde::Serialize;
 use tokio::runtime::Handle;
 use tokio::task;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, Instrument};
 
 use super::error::*;
 use super::types::*;
@@ -100,18 +102,21 @@ impl EhClient {
         &'a self,
         params: &'a T,
     ) -> impl Stream<Item = EhGalleryUrl> + 'a {
-        stream::unfold(0, move |next| async move {
-            match self.search_skip(params, next).await {
-                Ok(gls) => {
-                    let next = gls.last().unwrap().id();
-                    info!(next);
-                    Some((stream::iter(gls), next))
-                }
-                Err(e) => {
-                    error!("search error: {}", e);
-                    None
+        stream::unfold(0, move |next| {
+            async move {
+                match self.search_skip(params, next).await {
+                    Ok(gls) => {
+                        let next = gls.last().unwrap().id();
+                        info!("下一页 {}", next);
+                        Some((stream::iter(gls), next))
+                    }
+                    Err(e) => {
+                        error!("search error: {}", e);
+                        None
+                    }
                 }
             }
+            .in_current_span()
         })
         .flatten()
     }
@@ -168,11 +173,17 @@ impl EhClient {
         Ok(html.select_attr("img#img", "src").unwrap())
     }
 
-    /// 获取画廊的某一页的图片的字节流
+    /// 获取画廊的某一页的图片的 fileindex 和字节流
     #[tracing::instrument(skip(self))]
-    pub async fn get_image_bytes(&self, page: &EhPageUrl) -> Result<Vec<u8>> {
+    pub async fn get_image_bytes(&self, page: &EhPageUrl) -> Result<(u32, Vec<u8>)> {
+        static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"fileindex=(?P<fileindex>\d+)").unwrap());
+
         let url = self.get_image_url(page).await?;
+
+        let captures = RE.captures(&url).unwrap();
+        let fileindex = captures.name("fileindex").unwrap().as_str().parse().unwrap();
+
         let resp = send!(self.0.get(url))?;
-        Ok(resp.bytes().await?.to_vec())
+        Ok((fileindex, resp.bytes().await?.to_vec()))
     }
 }

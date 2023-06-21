@@ -122,15 +122,15 @@ impl GalleryEntity {
     pub async fn list(
         start: NaiveDate,
         end: NaiveDate,
-        limit: i64,
-        page: i64,
+        limit: i32,
+        page: i32,
     ) -> Result<Vec<(f32, String, i32)>> {
         sqlx::query_as(
             r#"SELECT poll.score, gallery.title, message.id
             FROM gallery
             JOIN poll ON poll.gallery_id = gallery.id
             JOIN message ON message.gallery_id = gallery.id
-            WHERE publish_date.publish_date BETWEEN ? AND ?
+            WHERE message.publish_date BETWEEN ? AND ?
             ORDER BY poll.score DESC LIMIT ? OFFSET ?"#,
         )
         .bind(start)

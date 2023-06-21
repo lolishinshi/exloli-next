@@ -19,7 +19,7 @@ pub struct PollEntity {
 #[derive(sqlx::FromRow, Debug)]
 pub struct VoteEntity {
     /// 用户 ID
-    pub user_id: i32,
+    pub user_id: i64,
     /// 投票 ID
     pub poll_id: i64,
     /// 投票选项
@@ -63,7 +63,7 @@ impl PollEntity {
     }
 
     #[tracing::instrument(level = Level::DEBUG)]
-    async fn update_score(id: i64) -> Result<f32> {
+    pub async fn update_score(id: i64) -> Result<f32> {
         let vote = Self::get_vote(id).await?;
         let score = wilson_score(&vote);
         sqlx::query("UPDATE poll SET score = ? WHERE id = ?")
@@ -76,19 +76,16 @@ impl PollEntity {
 }
 
 impl VoteEntity {
+    /// 创建一个用户投票，创建完毕后请调用 PollEntity::update_score 来更新分数
     #[tracing::instrument(level = Level::DEBUG)]
-    pub async fn create(user_id: i32, poll_id: i64, option: i32) -> Result<SqliteQueryResult> {
-        let result = sqlx::query(
-            "INSERT INTO vote (user_id, poll_id, option, vote_time) VALUES (?, ?, ?, ?)",
-        )
-        .bind(user_id)
-        .bind(poll_id)
-        .bind(option)
-        .bind(Utc::now().naive_utc())
-        .execute(&*DB)
-        .await?;
-        PollEntity::update_score(poll_id).await?;
-        Ok(result)
+    pub async fn create(user_id: u64, poll_id: i64, option: i32) -> Result<SqliteQueryResult> {
+        sqlx::query("REPLACE INTO vote (user_id, poll_id, option, vote_time) VALUES (?, ?, ?, ?)")
+            .bind(user_id as i64)
+            .bind(poll_id)
+            .bind(option)
+            .bind(Utc::now().naive_utc())
+            .execute(&*DB)
+            .await
     }
 }
 

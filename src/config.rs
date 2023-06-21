@@ -1,4 +1,7 @@
+use std::time::Duration;
+
 use anyhow::Result;
+use duration_str::deserialize_duration;
 use serde::Deserialize;
 use teloxide::types::{ChatId, Recipient};
 
@@ -8,8 +11,9 @@ pub struct Config {
     pub log_level: String,
     /// 同时下载线程数量
     pub threads_num: usize,
-    /// 定时爬取间隔，单位分钟
-    pub interval: u64,
+    /// 定时爬取间隔
+    #[serde(deserialize_with = "deserialize_duration")]
+    pub interval: Duration,
     /// Sqlite 数据库位置
     pub database_url: String,
     pub exhentai: ExHentai,

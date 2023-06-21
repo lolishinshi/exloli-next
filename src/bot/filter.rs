@@ -2,7 +2,8 @@ use teloxide::dispatching::DpHandlerDescription;
 use teloxide::prelude::*;
 use teloxide::types::ChatMemberKind;
 
-use crate::bot::Bot;
+use super::utils::CallbackData;
+use super::Bot;
 use crate::config::Config;
 
 pub fn filter_admin_msg<Output>() -> Handler<'static, DependencyMap, Output, DpHandlerDescription>
@@ -32,5 +33,14 @@ where
         message.from().map(|u| u.id.0 == 777000).unwrap_or_default()
             && message.text().map(|s| s.contains("原始地址")).unwrap_or_default()
             && cfg.telegram.group_id == message.chat.id
+    })
+}
+
+pub fn filter_callbackdata<Output>() -> Handler<'static, DependencyMap, Output, DpHandlerDescription>
+where
+    Output: Send + Sync + 'static,
+{
+    dptree::filter_map(|callback: CallbackQuery| {
+        callback.data.and_then(|s| CallbackData::unpack(&s))
     })
 }
