@@ -59,3 +59,7 @@ token = "xxxx:xxxxxxxx"
 ## 从 exloli 迁移
 
 直接运行即可，但是建议备份好数据库
+
+## TODO
+
+- 处理旧本子的投票：通过 /query 返回 OR 重新编辑频道消息添加投票 OR ？

@@ -10,6 +10,7 @@ use sqlx::{Database, Result, Sqlite};
 use tracing::Level;
 
 use super::db::DB;
+use crate::ehentai::EhGallery;
 
 // 此处使用 IndexMap，因为我们需要保证相同的 tag 每次序列化的结果都是一样的
 #[derive(Debug, Default)]
@@ -41,25 +42,16 @@ pub struct GalleryEntity {
 impl GalleryEntity {
     /// 创建一条记录
     #[tracing::instrument(level = Level::DEBUG)]
-    pub async fn create(
-        id: i32,
-        token: &str,
-        title: &str,
-        title_jp: &Option<String>,
-        tags: &IndexMap<String, Vec<String>>,
-        favorite: i32,
-        pages: i32,
-        parent: Option<i32>,
-    ) -> Result<SqliteQueryResult> {
+    pub async fn create(g: &EhGallery) -> Result<SqliteQueryResult> {
         sqlx::query("REPLACE INTO gallery (id, token, title, title_jp, tags, favorite, pages, parent, deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
-            .bind(id)
-            .bind(token)
-            .bind(title)
-            .bind(title_jp)
-            .bind(serde_json::to_string(tags).unwrap())
-            .bind(favorite)
-            .bind(pages)
-            .bind(parent)
+            .bind(g.url.id())
+            .bind(g.url.token())
+            .bind(&g.title)
+            .bind(&g.title_jp)
+            .bind(serde_json::to_string(&g.tags).unwrap())
+            .bind(g.favorite)
+            .bind(g.pages.len() as i32)
+            .bind(g.parent.as_ref().map(|g| g.id()))
             .bind(false)
             .execute(&*DB)
             .await
@@ -146,11 +138,17 @@ impl GalleryEntity {
         .await
     }
 
-    /// 列出所有画廊，按发布日期倒序
+    /// 列出所有画廊，按分数倒序
     pub async fn all() -> Result<Vec<Self>> {
-        sqlx::query_as("SELECT * FROM gallery WHERE deleted = FALSE ORDER BY id DESC")
-            .fetch_all(&*DB)
-            .await
+        sqlx::query_as(
+            r#"SELECT gallery.*
+            FROM gallery
+            JOIN poll ON poll.gallery_id = gallery.id
+            WHERE gallery.deleted = FALSE
+            ORDER BY poll.score DESC"#,
+        )
+        .fetch_all(&*DB)
+        .await
     }
 }
 

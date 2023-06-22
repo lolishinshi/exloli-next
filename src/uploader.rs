@@ -1,12 +1,12 @@
 use std::backtrace::Backtrace;
 use std::time::Duration;
 
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use chrono::{Datelike, Utc};
 use futures::{stream, StreamExt};
 use once_cell::sync::Lazy;
 use regex::Regex;
-use reqwest::Client;
+use reqwest::{Client, StatusCode};
 use telegraph_rs::{html_to_node, Telegraph};
 use teloxide::prelude::Requester;
 use teloxide::types::MessageId;
@@ -93,17 +93,7 @@ impl ExloliUploader {
         let msg = self.bot.send_message(self.config.telegram.channel_id.clone(), text).await?;
         // 数据入库
         MessageEntity::create(msg.id.0, gallery.url.id(), &article.url).await?;
-        GalleryEntity::create(
-            gallery.url.id(),
-            gallery.url.token(),
-            &gallery.title,
-            &gallery.title_jp,
-            &gallery.tags,
-            gallery.favorite,
-            gallery.pages.len() as i32,
-            gallery.parent.map(|u| u.id()),
-        )
-        .await?;
+        GalleryEntity::create(&gallery).await?;
 
         Ok(())
     }
@@ -146,17 +136,7 @@ impl ExloliUploader {
                 .await?;
         }
 
-        GalleryEntity::create(
-            gallery.url.id(),
-            gallery.url.token(),
-            &gallery.title,
-            &gallery.title_jp,
-            &gallery.tags,
-            gallery.favorite,
-            gallery.pages.len() as i32,
-            gallery.parent.map(|u| u.id()),
-        )
-        .await?;
+        GalleryEntity::create(&gallery).await?;
 
         Ok(())
     }
@@ -295,32 +275,26 @@ impl ExloliUploader {
         let galleries = GalleryEntity::all().await?;
         for gallery in galleries.iter().take(count) {
             info!("更新画廊 {}", gallery.url());
-            // 跳过已经存在页面记录的新格式本子
-            if gallery.favorite.is_some() {
-                continue;
-            }
-            if let Err(err) = self.update_history_gallery_inner(&gallery).await {
+            if let Err(err) = self.update_history_gallery_inner(gallery).await {
                 error!("更新失败 {}", err);
             }
-            time::sleep(Duration::from_secs(5)).await;
         }
         Ok(())
     }
 
     async fn update_history_gallery_inner(&self, gallery: &GalleryEntity) -> Result<()> {
-        let gallery = self.ehentai.get_gallery(&gallery.url()).await?;
-        self.upload_gallery_page(&gallery).await?;
-        GalleryEntity::create(
-            gallery.url.id(),
-            gallery.url.token(),
-            &gallery.title,
-            &gallery.title_jp,
-            &gallery.tags,
-            gallery.favorite,
-            gallery.pages.len() as i32,
-            gallery.parent.map(|u| u.id()),
-        )
-        .await?;
+        // 如果存在 favorite，说明所有字段都已经填充，只需要检查链接是否失效即可
+        if gallery.favorite.is_some() {
+            let msg =
+                MessageEntity::get_by_gallery_id(gallery.id).await?.ok_or(anyhow!("找不到消息"))?;
+            if reqwest::get(&msg.telegraph).await?.status() == StatusCode::NOT_FOUND {
+                self.republish(gallery, &msg).await?;
+            }
+        } else {
+            let gallery = self.ehentai.get_gallery(&gallery.url()).await?;
+            self.upload_gallery_page(&gallery).await?;
+            GalleryEntity::create(&gallery).await?;
+        }
         Ok(())
     }
 
@@ -336,7 +310,7 @@ impl ExloliUploader {
             };
             // 只扫描存在旧 telegraph 上传记录的页面
             if let Some(telegraph) = ImageEntity::get_old_url_by_hash(page.hash()).await? {
-                let url = self.ehentai.get_image_url(&page).await?;
+                let url = self.ehentai.get_image_url(page).await?;
                 let captures = RE.captures(&url).unwrap();
                 let fileindex = captures.name("fileindex").unwrap().as_str().parse().unwrap();
                 ImageEntity::create(fileindex, page.hash(), &telegraph).await?;

@@ -39,12 +39,12 @@ pub async fn cmd_best_text(
             format!(
                 "<code>{:.2}</code> - {}",
                 score * 100.,
-                link(url_of(channel.clone(), *msgid).as_str(), &title),
+                link(url_of(channel.clone(), *msgid).as_str(), title),
             )
         })
         .collect::<Vec<_>>()
         .join("\n");
-    return Ok(format!("最近 {} ~ {} 天的本子排名（{}）\n", start, end, offset) + &text);
+    Ok(format!("最近 {} ~ {} 天的本子排名（{}）\n", start, end, offset) + &text)
 }
 
 pub fn cmd_best_keyboard(from: i32, to: i32, offset: i32) -> InlineKeyboardMarkup {

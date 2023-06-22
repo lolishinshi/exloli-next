@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Context, Result};
 use teloxide::dispatching::DpHandlerDescription;
 use teloxide::dptree::case;
 use teloxide::prelude::*;
@@ -29,20 +29,21 @@ async fn callback_challenge(
     cfg: Config,
     (id, artist): (i64, String),
 ) -> Result<()> {
-    let message = query.message.ok_or(anyhow!("消息过旧"))?;
+    let message = query.message.context("消息过旧")?;
     info!("{}: <- challenge {} {}", query.from.id, id, artist);
     if let Some((gallery, page, answer)) = locker.get_challenge(id) {
         let success = answer == artist;
-        let msg_entity =
-            MessageEntity::get_by_gallery_id(gallery).await?.ok_or(anyhow!("找不到消息"))?;
+        let msg_entity = MessageEntity::get_by_gallery_id(gallery).await?.context("找不到消息")?;
+        let poll = PollEntity::get_by_gallery(gallery).await?.context("找不到投票")?;
         ChallengeHistory::create(query.from.id.0 as i64, gallery, page, success).await?;
         let text = format!(
-            "{} {}，答案是 {}（{}）\n画廊地址：{}",
+            "{} {}，答案是 {}（{}）\n消息：{}\n评分：{:.2}",
             user_mention(query.from.id.0 as i64, &query.from.full_name()),
             if success { "答对了！" } else { "答错了……" },
             trans.trans_raw("artist", &answer),
             &answer,
             url_of(cfg.telegram.channel_id, msg_entity.id),
+            poll.score * 100.,
         );
         bot.edit_message_caption(message.chat.id, message.id).caption(text).await?;
     }
