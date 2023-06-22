@@ -79,14 +79,6 @@ impl ImageEntity {
             .fetch_optional(&*DB)
             .await
     }
-
-    // TODO: 该功能需要移除
-    pub async fn get_old_url_by_fileindex(fileindex: u32) -> Result<Option<String>> {
-        sqlx::query_scalar("SELECT url FROM _del_images WHERE fileindex = ?")
-            .bind(fileindex)
-            .fetch_optional(&*DB)
-            .await
-    }
 }
 
 impl PageEntity {

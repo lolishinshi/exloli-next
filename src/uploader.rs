@@ -327,19 +327,16 @@ impl ExloliUploader {
         static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"fileindex=(?P<fileindex>\d+)").unwrap());
 
         for page in &gallery.pages {
-            if ImageEntity::get_by_hash(&page.hash()).await?.is_some() {
+            // 如果新表中能查到，则不需要扫描
+            if ImageEntity::get_by_hash(page.hash()).await?.is_some() {
                 continue;
             };
-            let url = self.ehentai.get_image_url(&page).await?;
-            let captures = RE.captures(&url).unwrap();
-            let fileindex = captures.name("fileindex").unwrap().as_str().parse().unwrap();
-
-            if let Some(url) = ImageEntity::get_old_url_by_hash(page.hash()).await? {
-                ImageEntity::create(fileindex, page.hash(), &url).await?;
-                PageEntity::create(page.gallery_id(), page.page(), fileindex).await?;
-            }
-            if let Some(url) = ImageEntity::get_old_url_by_fileindex(fileindex).await? {
-                ImageEntity::create(fileindex, page.hash(), &url).await?;
+            // 只扫描存在旧 telegraph 上传记录的页面
+            if let Some(telegraph) = ImageEntity::get_old_url_by_hash(page.hash()).await? {
+                let url = self.ehentai.get_image_url(&page).await?;
+                let captures = RE.captures(&url).unwrap();
+                let fileindex = captures.name("fileindex").unwrap().as_str().parse().unwrap();
+                ImageEntity::create(fileindex, page.hash(), &telegraph).await?;
                 PageEntity::create(page.gallery_id(), page.page(), fileindex).await?;
             }
             time::sleep(Duration::from_secs(5)).await;
