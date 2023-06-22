@@ -20,6 +20,18 @@ pub fn admin_command_handler() -> Handler<'static, DependencyMap, Result<()>, Dp
         .branch(case![AdminCommand::Upload(gallery)].endpoint(cmd_upload))
         .branch(case![AdminCommand::Delete].endpoint(cmd_delete))
         .branch(case![AdminCommand::Erase].endpoint(cmd_delete))
+        .branch(case![AdminCommand::ReScan(count)].endpoint(cmd_rescan))
+}
+
+// TODO: 该功能需要移除
+async fn cmd_rescan(bot: Bot, msg: Message, uploader: ExloliUploader, count: usize) -> Result<()> {
+    let reply = reply_to!(bot, msg, "更新中……").await?;
+    tokio::spawn(async move {
+        uploader.update_history_gallery(count).await?;
+        bot.edit_message_text(msg.chat.id, reply.id, "更新完成").await?;
+        Result::<()>::Ok(())
+    });
+    Ok(())
 }
 
 async fn cmd_upload(
@@ -28,15 +40,18 @@ async fn cmd_upload(
     uploader: ExloliUploader,
     gallery: EhGalleryUrl,
 ) -> Result<()> {
-    info!("{:?}: /upload {}", msg.from(), gallery);
+    info!("{}: /upload {}", msg.from().unwrap().id, gallery);
     let reply = reply_to!(bot, msg, "上传中……").await?;
-    uploader.try_upload(&gallery, false).await?;
-    bot.edit_message_text(msg.chat.id, reply.id, "上传完成").await?;
+    tokio::spawn(async move {
+        uploader.try_upload(&gallery, false).await?;
+        bot.edit_message_text(msg.chat.id, reply.id, "上传完成").await?;
+        Result::<()>::Ok(())
+    });
     Ok(())
 }
 
 async fn cmd_delete(bot: Bot, msg: Message, command: AdminCommand) -> Result<()> {
-    info!("{:?}: /delete", msg.from());
+    info!("{}: /delete", msg.from().unwrap().id);
     let reply_to = msg.reply_to_message().context("没有回复消息")?;
 
     let channel = reply_to.forward_from_chat().context("该消息没有回复画廊")?;

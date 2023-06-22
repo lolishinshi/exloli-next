@@ -5,6 +5,7 @@ use std::time::Duration;
 use anyhow::Result;
 use chrono::{Datelike, Utc};
 use futures::{stream, StreamExt};
+use once_cell::sync::Lazy;
 use regex::Regex;
 use reqwest::Client;
 use telegraph_rs::{html_to_node, Telegraph};
@@ -95,6 +96,7 @@ impl ExloliUploader {
             &gallery.title,
             &gallery.title_jp,
             &gallery.tags,
+            gallery.favorite,
             gallery.pages.len() as i32,
             gallery.parent.map(|u| u.id()),
         )
@@ -129,15 +131,29 @@ impl ExloliUploader {
 
         // 检查 tag 和标题是否有变化
         let gallery = self.ehentai.get_gallery(gallery).await?;
-        if gallery.tags == entity.tags.0 && gallery.title == entity.title {
-            return Ok(());
+
+        if gallery.tags != entity.tags.0 || gallery.title != entity.title {
+            let text = self.create_message_text(&gallery, &message.telegraph).await?;
+            self.bot
+                .edit_message_text(
+                    self.config.telegram.channel_id.clone(),
+                    MessageId(message.id),
+                    text,
+                )
+                .await?;
         }
 
-        let text = self.create_message_text(&gallery, &message.telegraph).await?;
-
-        self.bot
-            .edit_message_text(self.config.telegram.channel_id.clone(), MessageId(message.id), text)
-            .await?;
+        GalleryEntity::create(
+            gallery.url.id(),
+            gallery.url.token(),
+            &gallery.title,
+            &gallery.title_jp,
+            &gallery.tags,
+            gallery.favorite,
+            gallery.pages.len() as i32,
+            gallery.parent.map(|u| u.id()),
+        )
+        .await?;
 
         Ok(())
     }
@@ -271,14 +287,64 @@ impl ExloliUploader {
 
 impl ExloliUploader {
     /// 重新扫描并更新所有历史画廊，
-    pub async fn update_history_gallery(&self) -> Result<()> {
+    // TODO: 该功能需要移除
+    pub async fn update_history_gallery(&self, count: usize) -> Result<()> {
         let galleries = GalleryEntity::all().await?;
-        for gallery in galleries {
-            if PageEntity::count(gallery.id) != 0 {
+        for gallery in galleries.iter().take(count) {
+            info!("更新画廊 {}", gallery.url());
+            // 跳过已经存在页面记录的新格式本子
+            if gallery.favorite.is_some() {
                 continue;
             }
-            let gallery = self.ehentai.get_gallery(&gallery.url()).await?;
+            if let Err(err) = self.update_history_gallery_inner(&gallery).await {
+                error!("更新失败 {}", err);
+            }
+            time::sleep(Duration::from_secs(5)).await;
         }
+        Ok(())
+    }
+
+    async fn update_history_gallery_inner(&self, gallery: &GalleryEntity) -> Result<()> {
+        let gallery = self.ehentai.get_gallery(&gallery.url()).await?;
+        self.upload_gallery_page(&gallery).await?;
+        GalleryEntity::create(
+            gallery.url.id(),
+            gallery.url.token(),
+            &gallery.title,
+            &gallery.title_jp,
+            &gallery.tags,
+            gallery.favorite,
+            gallery.pages.len() as i32,
+            gallery.parent.map(|u| u.id()),
+        )
+        .await?;
+        Ok(())
+    }
+
+    /// 获取某个画廊里的所有图片，并添加记录
+    // TODO: 该功能需要移除
+    async fn upload_gallery_page(&self, gallery: &EhGallery) -> Result<()> {
+        static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"fileindex=(?P<fileindex>\d+)").unwrap());
+
+        for page in &gallery.pages {
+            if ImageEntity::get_by_hash(&page.hash()).await?.is_some() {
+                continue;
+            };
+            let url = self.ehentai.get_image_url(&page).await?;
+            let captures = RE.captures(&url).unwrap();
+            let fileindex = captures.name("fileindex").unwrap().as_str().parse().unwrap();
+
+            if let Some(url) = ImageEntity::get_old_url_by_hash(page.hash()).await? {
+                ImageEntity::create(fileindex, page.hash(), &url).await?;
+                PageEntity::create(page.gallery_id(), page.page(), fileindex).await?;
+            }
+            if let Some(url) = ImageEntity::get_old_url_by_fileindex(fileindex).await? {
+                ImageEntity::create(fileindex, page.hash(), &url).await?;
+                PageEntity::create(page.gallery_id(), page.page(), fileindex).await?;
+            }
+            time::sleep(Duration::from_secs(5)).await;
+        }
+
         Ok(())
     }
 }

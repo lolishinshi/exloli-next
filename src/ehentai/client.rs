@@ -140,6 +140,10 @@ impl EhClient {
             tags.insert(namespace, tag);
         }
 
+        // 收藏数量
+        let favorite = html.select_text("#favcount").unwrap();
+        let favorite = favorite.split(' ').next().unwrap().parse().unwrap();
+
         // 每一页的 URL
         let mut pages = html.select_attrs("div.gdtl a", "href");
         while let Some(next_page) = html.select_attr("table.ptt td:last-child", "href") {
@@ -162,7 +166,7 @@ impl EhClient {
 
         let pages = pages.into_iter().map(EhPageUrl).collect();
 
-        Ok(EhGallery { url: url.clone(), title, title_jp, parent, tags, pages })
+        Ok(EhGallery { url: url.clone(), title, title_jp, parent, tags, favorite, pages })
     }
 
     /// 获取画廊的某一页的图片实际地址

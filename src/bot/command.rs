@@ -13,6 +13,9 @@ pub enum AdminCommand {
     Delete,
     #[command(description = "完全删除所回复的画廊，会导致重新上传")]
     Erase,
+    // TODO: 该功能需要移除
+    #[command(description = "重新扫描最近 N 本子的页面")]
+    ReScan(usize),
 }
 
 #[derive(BotCommands, Clone, PartialEq, Debug)]

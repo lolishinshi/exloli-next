@@ -28,6 +28,8 @@ pub struct GalleryEntity {
     /// JSON 格式的画廊标签
     /// 旧画廊可能为空
     pub tags: TagsEntity,
+    /// 收藏数量
+    pub favorite: Option<i32>,
     /// 页面数量
     pub pages: i32,
     /// 父画廊
@@ -45,15 +47,17 @@ impl GalleryEntity {
         title: &str,
         title_jp: &Option<String>,
         tags: &IndexMap<String, Vec<String>>,
+        favorite: i32,
         pages: i32,
         parent: Option<i32>,
     ) -> Result<SqliteQueryResult> {
-        sqlx::query("REPLACE INTO gallery (id, token, title, title_jp, tags, pages, parent, deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+        sqlx::query("REPLACE INTO gallery (id, token, title, title_jp, tags, favorite, pages, parent, deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
             .bind(id)
             .bind(token)
             .bind(title)
             .bind(title_jp)
             .bind(serde_json::to_string(tags).unwrap())
+            .bind(favorite)
             .bind(pages)
             .bind(parent)
             .bind(false)
@@ -144,7 +148,7 @@ impl GalleryEntity {
 
     /// 列出所有画廊，按发布日期倒序
     pub async fn all() -> Result<Vec<Self>> {
-        sqlx::query_as("SELECT * FROM gallery ORDER BY id DESC WHERE deleted = FALSE")
+        sqlx::query_as("SELECT * FROM gallery WHERE deleted = FALSE ORDER BY id DESC")
             .fetch_all(&*DB)
             .await
     }

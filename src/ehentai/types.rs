@@ -88,6 +88,8 @@ pub struct EhGallery {
     pub title_jp: Option<String>,
     /// 画廊标签
     pub tags: IndexMap<String, Vec<String>>,
+    /// 收藏数量
+    pub favorite: i32,
     /// 父画廊地址
     pub parent: Option<EhGalleryUrl>,
     /// 画廊页面

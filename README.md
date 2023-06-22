@@ -15,7 +15,7 @@
 log_level = "info,sqlx=warn,teloxide=error,exloli_next=debug"
 # 下载线程的数量
 # NOTE: 上传线程数量固定为 1
-threads_num = 5
+threads_num = 1
 # 每次扫描的间隔
 interval = "1h"
 # 数据库文件位置

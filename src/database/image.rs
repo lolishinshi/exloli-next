@@ -28,7 +28,7 @@ impl ImageEntity {
     /// 创建一条记录
     #[tracing::instrument(level = Level::DEBUG)]
     pub async fn create(id: u32, hash: &str, url: &str) -> Result<SqliteQueryResult> {
-        sqlx::query("INSERT INTO image (id, hash, url) VALUES (?, ?, ?)")
+        sqlx::query("INSERT OR IGNORE INTO image (id, hash, url) VALUES (?, ?, ?)")
             .bind(id)
             .bind(hash)
             .bind(url)
@@ -69,6 +69,22 @@ impl ImageEntity {
         sqlx::query_as("SELECT * FROM image JOIN page ON page.image_id = image.id WHERE page.gallery_id = ? ORDER BY page.page")
             .bind(gallery_id)
             .fetch_all(&*DB)
+            .await
+    }
+
+    // TODO: 该功能需要移除
+    pub async fn get_old_url_by_hash(hash: &str) -> Result<Option<String>> {
+        sqlx::query_scalar("SELECT url FROM _del_image_hash WHERE hash = ?")
+            .bind(hash)
+            .fetch_optional(&*DB)
+            .await
+    }
+
+    // TODO: 该功能需要移除
+    pub async fn get_old_url_by_fileindex(fileindex: u32) -> Result<Option<String>> {
+        sqlx::query_scalar("SELECT url FROM _del_images WHERE fileindex = ?")
+            .bind(fileindex)
+            .fetch_optional(&*DB)
             .await
     }
 }
