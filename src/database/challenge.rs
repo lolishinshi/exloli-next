@@ -37,16 +37,6 @@ impl ChallengeView {
         .fetch_all(&*DB)
         .await
     }
-
-    pub async fn verify(gallery_id: i32, artist: &str) -> Result<bool> {
-        sqlx::query_scalar(
-            "SELECT EXISTS(SELECT 1 FROM challenge_view WHERE id = ? AND artist = ?)",
-        )
-        .bind(gallery_id)
-        .bind(artist)
-        .fetch_one(&*DB)
-        .await
-    }
 }
 
 impl ChallengeHistory {

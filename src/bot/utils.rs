@@ -93,7 +93,7 @@ impl RateLimiter {
 
 /// 防止快速点击导致重复答题
 #[derive(Debug, Clone)]
-pub struct ChallengeLocker(Arc<DashMap<i64, (i32, i32)>>);
+pub struct ChallengeLocker(Arc<DashMap<i64, (i32, i32, String)>>);
 
 impl ChallengeLocker {
     pub fn new() -> Self {
@@ -101,14 +101,14 @@ impl ChallengeLocker {
     }
 
     /// 添加一个挑战，返回这个挑战的随机 ID
-    pub fn add_challenge(&self, gallery: i32, page: i32) -> i64 {
+    pub fn add_challenge(&self, gallery: i32, page: i32, artist: String) -> i64 {
         let key = rand::random::<i64>();
-        self.0.insert(key, (gallery, page));
+        self.0.insert(key, (gallery, page, artist));
         key
     }
 
     /// 尝试获得一个答题机会
-    pub fn get_challenge(&self, id: i64) -> Option<(i32, i32)> {
+    pub fn get_challenge(&self, id: i64) -> Option<(i32, i32, String)> {
         Some(self.0.remove(&id)?.1)
     }
 }

@@ -34,8 +34,9 @@ async fn cmd_challenge(
     trans: EhTagTransDB,
     locker: ChallengeLocker,
 ) -> Result<()> {
+    info!("{}: /challenge", msg.from().unwrap().id);
     let challenge = ChallengeView::get_random().await?;
-    let id = locker.add_challenge(challenge[0].id, challenge[0].page);
+    let id = locker.add_challenge(challenge[0].id, challenge[0].page, challenge[0].artist.clone());
     let keyboard = cmd_challenge_keyboard(id, &challenge, &trans);
     bot.send_photo(
         msg.chat.id,
