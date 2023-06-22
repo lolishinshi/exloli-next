@@ -63,3 +63,4 @@ token = "xxxx:xxxxxxxx"
 ## TODO
 
 - 处理旧本子的投票：通过 /query 返回 OR 重新编辑频道消息添加投票 OR ？
+- 标记坏图片，可以分为无效图片和广告图片，后者不会上传，两者均不会出现在 challenge 中
