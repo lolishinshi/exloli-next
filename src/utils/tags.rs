@@ -1,10 +1,14 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use indexmap::IndexMap;
 use serde::Deserialize;
 
+#[derive(Debug, Clone)]
+pub struct EhTagTransDB(Arc<EhTagTransDBInner>);
+
 #[derive(Debug, Deserialize)]
-pub struct EhTagTransDB {
+struct EhTagTransDBInner {
     // repo: String,
     // head: Value,
     // version: u8,
@@ -12,7 +16,7 @@ pub struct EhTagTransDB {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct EhTagTransData {
+struct EhTagTransData {
     namespace: String,
     // frontMatters: Value,
     // count: i32,
@@ -20,7 +24,7 @@ pub struct EhTagTransData {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct TagInfo {
+struct TagInfo {
     name: String,
     // intro: String,
     // links: String,
@@ -29,20 +33,24 @@ pub struct TagInfo {
 impl EhTagTransDB {
     pub fn new(file: &str) -> Self {
         let text = std::fs::read_to_string(file).expect("无法打开 db.text.json");
-        serde_json::from_str(&text).expect("无法解析翻译数据库")
+        Self(Arc::new(serde_json::from_str(&text).expect("无法解析翻译数据库")))
+    }
+
+    /// 返回不经过任何修改的翻译结果，即多个结果之间用 | 分隔
+    pub fn trans_raw<'a>(&'a self, namespace: &str, name: &'a str) -> &'a str {
+        for ns in &self.0.data {
+            if ns.namespace == namespace {
+                return ns.data.get(name).map(|info| info.name.as_str()).unwrap_or(name);
+            }
+        }
+        name
     }
 
     /// 根据 namespace 和 tag name 进行翻译
     ///
     /// 可能会返回多个翻译结果
     pub fn trans<'s>(&'s self, namespace: &str, name: &'s str) -> Vec<&'s str> {
-        for ns in &self.data {
-            if ns.namespace == namespace {
-                let result = ns.data.get(name).map(|info| info.name.as_str()).unwrap_or(name);
-                return result.split(" | ").collect::<Vec<_>>();
-            }
-        }
-        vec![name]
+        self.trans_raw(namespace, name).split(" | ").collect::<Vec<_>>()
     }
 
     /// 翻译 namespace

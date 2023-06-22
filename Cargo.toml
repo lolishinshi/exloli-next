@@ -1,6 +1,6 @@
 [package]
 name = "exloli-next"
-version = "0.1.0-alpha1"
+version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -13,6 +13,7 @@ duration-str = { version = "0.5.1", default-features = false, features = ["serde
 futures = "0.3.28"
 indexmap = { version = "1.9.3", features = ["serde"] }
 once_cell = "1.18.0"
+rand = "0.8.5"
 regex = "1.8.4"
 reqwest = { version = "0.11.18", features = ["cookies", "gzip", "brotli"] }
 scraper = "0.16.0"

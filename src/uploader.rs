@@ -1,5 +1,4 @@
 use std::backtrace::Backtrace;
-use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::Result;
@@ -29,17 +28,21 @@ pub struct ExloliUploader {
     telegraph: Telegraph,
     bot: Bot,
     config: Config,
-    trans: Arc<EhTagTransDB>,
+    trans: EhTagTransDB,
 }
 
 impl ExloliUploader {
-    pub async fn new(config: Config, ehentai: EhClient, bot: Bot) -> Result<Self> {
+    pub async fn new(
+        config: Config,
+        ehentai: EhClient,
+        bot: Bot,
+        trans: EhTagTransDB,
+    ) -> Result<Self> {
         let telegraph = Telegraph::new(&config.telegraph.author_name)
             .author_url(&config.telegraph.author_url)
             .access_token(&config.telegraph.access_token)
             .create()
             .await?;
-        let trans = Arc::new(EhTagTransDB::new(&config.exhentai.trans_file));
         Ok(Self { ehentai, config, telegraph, bot, trans })
     }
 

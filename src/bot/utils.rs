@@ -8,9 +8,14 @@ use teloxide::prelude::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CallbackData {
+    /// 投票、选项
     VoteForPoll(i32, i32),
+    /// 开始、结束、偏移
     NextPage(i32, i32, i32),
+    /// 开始、结束、偏移
     PrevPage(i32, i32, i32),
+    /// 挑战 ID、画师名称
+    Challenge(i64, String),
 }
 
 impl CallbackData {
@@ -19,6 +24,7 @@ impl CallbackData {
             Self::VoteForPoll(a, b) => format!("vote {} {}", a, b),
             Self::NextPage(a, b, c) => format!("> {} {} {}", a, b, c),
             Self::PrevPage(a, b, c) => format!("< {} {} {}", a, b, c),
+            Self::Challenge(a, b) => format!("challenge {}:{}", a, b),
         }
     }
 
@@ -38,6 +44,10 @@ impl CallbackData {
                 let (a, data) = data.split_once(' ')?;
                 let (b, c) = data.split_once(' ')?;
                 Some(Self::PrevPage(a.parse().ok()?, b.parse().ok()?, c.parse().ok()?))
+            }
+            "challenge" => {
+                let (a, b) = data.split_once(':')?;
+                Some(Self::Challenge(a.parse().ok()?, b.to_string()))
             }
             _ => None,
         }
@@ -78,5 +88,27 @@ impl RateLimiter {
         }
         entry.push_back(Instant::now());
         None
+    }
+}
+
+/// 防止快速点击导致重复答题
+#[derive(Debug, Clone)]
+pub struct ChallengeLocker(Arc<DashMap<i64, (i32, i32)>>);
+
+impl ChallengeLocker {
+    pub fn new() -> Self {
+        Self(Arc::new(Default::default()))
+    }
+
+    /// 添加一个挑战，返回这个挑战的随机 ID
+    pub fn add_challenge(&self, gallery: i32, page: i32) -> i64 {
+        let key = rand::random::<i64>();
+        self.0.insert(key, (gallery, page));
+        key
+    }
+
+    /// 尝试获得一个答题机会
+    pub fn get_challenge(&self, id: i64) -> Option<(i32, i32)> {
+        Some(self.0.remove(&id)?.1)
     }
 }

@@ -42,27 +42,6 @@ impl ImageEntity {
         sqlx::query_as("SELECT * FROM image WHERE hash = ?").bind(hash).fetch_optional(&*DB).await
     }
 
-    /// 从指定画廊里随机获取一张图片
-    ///
-    /// 画廊要求：
-    /// - 分数大于 80
-    /// - 作者只有 1 位
-    #[tracing::instrument(level = Level::DEBUG)]
-    pub async fn get_challenge() -> Result<Option<Self>> {
-        sqlx::query_as(
-            r#"SELECT * FROM image
-            JOIN page ON page.image_id = image.id
-            JOIN gallery ON gallery.id = image.gallery_id
-            JOIN poll ON poll.gallery_id = gallery.id
-            WHERE poll.score > 0.8
-              AND JSON_ARRAY_LENGTH(JSON_EXTRACT(gallery.tags, '$.artist')) = 1
-            ORDER BY RANDOM()
-            LIMIT 1"#,
-        )
-        .fetch_optional(&*DB)
-        .await
-    }
-
     /// 获取指定画廊的所有图片，并且按页码排列
     #[tracing::instrument(level = Level::DEBUG)]
     pub async fn get_by_gallery_id(gallery_id: i32) -> Result<Vec<Self>> {

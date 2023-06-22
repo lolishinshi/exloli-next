@@ -1,20 +1,45 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use teloxide::dispatching::DpHandlerDescription;
 use teloxide::dptree::case;
 use teloxide::prelude::*;
+use teloxide::utils::html::user_mention;
 use tracing::info;
 
 use crate::bot::handlers::{cmd_best_keyboard, cmd_best_text, poll_keyboard};
-use crate::bot::utils::{CallbackData, RateLimiter};
+use crate::bot::utils::{CallbackData, ChallengeLocker, RateLimiter};
 use crate::bot::Bot;
 use crate::config::Config;
-use crate::database::{PollEntity, VoteEntity};
+use crate::database::{ChallengeHistory, ChallengeView, PollEntity, VoteEntity};
+use crate::utils::tags::EhTagTransDB;
 
 pub fn callback_query_handler() -> Handler<'static, DependencyMap, Result<()>, DpHandlerDescription>
 {
     dptree::entry()
         .branch(case![CallbackData::VoteForPoll(poll, option)].endpoint(callback_vote_for_poll))
+        .branch(case![CallbackData::Challenge(id, artist)].endpoint(callback_challenge))
         .endpoint(callback_change_page)
+}
+
+async fn callback_challenge(
+    bot: Bot,
+    query: CallbackQuery,
+    trans: EhTagTransDB,
+    locker: ChallengeLocker,
+    (id, artist): (i64, String),
+) -> Result<()> {
+    let message = query.message.ok_or(anyhow!("消息过旧"))?;
+    if let Some((gallery, page)) = locker.get_challenge(id) {
+        let success = ChallengeView::verify(gallery, &artist).await?;
+        ChallengeHistory::create(query.from.id.0 as i64, gallery, page, success).await?;
+        let text = format!(
+            "{} {}，答案是 {}",
+            user_mention(query.from.id.0 as i64, &query.from.full_name()),
+            if success { "答对了！" } else { "答错了……" },
+            trans.trans_raw("artist", &artist)
+        );
+        bot.edit_message_caption(message.chat.id, message.id).caption(text).await?;
+    }
+    Ok(())
 }
 
 async fn callback_vote_for_poll(

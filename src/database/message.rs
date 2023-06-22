@@ -31,6 +31,7 @@ impl MessageEntity {
         .await
     }
 
+    // TODO: 如果存在与否不重要，其实不需要返回 Option，否则反而不方便上抛错误
     #[tracing::instrument(level = Level::DEBUG)]
     pub async fn get(id: i32) -> Result<Option<MessageEntity>> {
         sqlx::query_as("SELECT * FROM message WHERE id = ?").bind(id).fetch_optional(&*DB).await

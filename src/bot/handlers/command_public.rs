@@ -3,17 +3,20 @@ use reqwest::{StatusCode, Url};
 use teloxide::dispatching::DpHandlerDescription;
 use teloxide::dptree::case;
 use teloxide::prelude::*;
+use teloxide::types::InputFile;
 use tracing::info;
 
 use crate::bot::command::PublicCommand;
 use crate::bot::handlers::cmd_best_keyboard;
-use crate::bot::handlers::utils::{cmd_best_text, url_of};
+use crate::bot::handlers::utils::{cmd_best_text, cmd_challenge_keyboard, url_of};
+use crate::bot::utils::ChallengeLocker;
 use crate::bot::Bot;
 use crate::config::Config;
-use crate::database::{GalleryEntity, MessageEntity};
+use crate::database::{ChallengeView, GalleryEntity, MessageEntity};
 use crate::ehentai::{EhGalleryUrl, GalleryInfo};
 use crate::reply_to;
 use crate::uploader::ExloliUploader;
+use crate::utils::tags::EhTagTransDB;
 
 pub fn public_command_handler() -> Handler<'static, DependencyMap, Result<()>, DpHandlerDescription>
 {
@@ -22,6 +25,27 @@ pub fn public_command_handler() -> Handler<'static, DependencyMap, Result<()>, D
         .branch(case![PublicCommand::Ping].endpoint(cmd_ping))
         .branch(case![PublicCommand::Update(url)].endpoint(cmd_update))
         .branch(case![PublicCommand::Best(from, to)].endpoint(cmd_best))
+        .branch(case![PublicCommand::Challenge].endpoint(cmd_challenge))
+}
+
+async fn cmd_challenge(
+    bot: Bot,
+    msg: Message,
+    trans: EhTagTransDB,
+    locker: ChallengeLocker,
+) -> Result<()> {
+    let challenge = ChallengeView::get_random().await?;
+    let id = locker.add_challenge(challenge[0].id, challenge[0].page);
+    let keyboard = cmd_challenge_keyboard(id, &challenge, &trans);
+    bot.send_photo(
+        msg.chat.id,
+        InputFile::url(format!("https://telegra.ph{}", challenge[0].url).parse()?),
+    )
+    .caption("上述图片来自下列哪位作者的本子？")
+    .reply_markup(keyboard)
+    .reply_to_message_id(msg.id)
+    .await?;
+    Ok(())
 }
 
 async fn cmd_best(bot: Bot, msg: Message, (end, start): (u16, u16), cfg: Config) -> Result<()> {

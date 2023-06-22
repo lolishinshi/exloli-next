@@ -8,7 +8,21 @@ use teloxide::types::{
 use teloxide::utils::html::link;
 
 use crate::bot::utils::CallbackData;
-use crate::database::GalleryEntity;
+use crate::database::{ChallengeView, GalleryEntity};
+use crate::utils::tags::EhTagTransDB;
+
+pub fn cmd_challenge_keyboard(
+    id: i64,
+    challenge: &[ChallengeView],
+    trans: &EhTagTransDB,
+) -> InlineKeyboardMarkup {
+    InlineKeyboardMarkup::new(challenge.iter().map(|g| {
+        vec![InlineKeyboardButton::callback(
+            format!("{}（{}）", trans.trans_raw("artist", &g.artist), &g.artist),
+            CallbackData::Challenge(id, g.artist.clone()).pack(),
+        )]
+    }))
+}
 
 pub async fn cmd_best_text(
     start: i32,
@@ -35,14 +49,8 @@ pub async fn cmd_best_text(
 
 pub fn cmd_best_keyboard(from: i32, to: i32, offset: i32) -> InlineKeyboardMarkup {
     InlineKeyboardMarkup::new(vec![vec![
-        InlineKeyboardButton::new(
-            "<",
-            InlineKeyboardButtonKind::CallbackData(CallbackData::PrevPage(from, to, offset).pack()),
-        ),
-        InlineKeyboardButton::new(
-            ">",
-            InlineKeyboardButtonKind::CallbackData(CallbackData::NextPage(from, to, offset).pack()),
-        ),
+        InlineKeyboardButton::callback("<", CallbackData::PrevPage(from, to, offset).pack()),
+        InlineKeyboardButton::callback(">", CallbackData::NextPage(from, to, offset).pack()),
     ]])
 }
 

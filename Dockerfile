@@ -1,8 +1,15 @@
 FROM rust:1.70-bullseye as builder
 
 WORKDIR /app
+
+# 缓存依赖，提高构建速度
+RUN mkdir src && echo 'fn main() {}' > src/main.rs
+COPY Cargo.toml .
+COPY Cargo.lock .
+RUN cargo build --target-dir=target --release && rm -f src/main.rs
+
 COPY . .
-RUN cargo install --path .
+RUN cargo install --target-dir=target --path .
 
 FROM debian:bullseye
 ENV RUST_BACKTRACE=full
