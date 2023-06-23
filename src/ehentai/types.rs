@@ -1,6 +1,7 @@
 use std::fmt::Display;
 use std::str::FromStr;
 
+use chrono::prelude::*;
 use indexmap::IndexMap;
 
 use super::error::EhError;
@@ -94,6 +95,8 @@ pub struct EhGallery {
     pub parent: Option<EhGalleryUrl>,
     /// 画廊页面
     pub pages: Vec<EhPageUrl>,
+    /// 发布时间
+    pub posted: NaiveDateTime,
 }
 
 pub trait GalleryInfo {

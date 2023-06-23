@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 use std::time::Duration;
 
+use chrono::prelude::*;
 use futures::prelude::*;
 use indexmap::IndexMap;
 use once_cell::sync::Lazy;
@@ -144,6 +145,10 @@ impl EhClient {
         let favorite = html.select_text("#favcount").unwrap();
         let favorite = favorite.split(' ').next().unwrap().parse().unwrap();
 
+        // 发布时间
+        let posted = &html.select_texts("td.gdt2")[0];
+        let posted = NaiveDateTime::parse_from_str(posted, "%Y-%m-%d %H:%M")?;
+
         // 每一页的 URL
         let mut pages = html.select_attrs("div.gdtl a", "href");
         while let Some(next_page) = html.select_attr("table.ptt td:last-child", "href") {
@@ -166,7 +171,7 @@ impl EhClient {
 
         let pages = pages.into_iter().map(EhPageUrl).collect();
 
-        Ok(EhGallery { url: url.clone(), title, title_jp, parent, tags, favorite, pages })
+        Ok(EhGallery { url: url.clone(), title, title_jp, parent, tags, favorite, pages, posted })
     }
 
     /// 获取画廊的某一页的图片实际地址

@@ -1,6 +1,6 @@
 use std::ops::Deref;
 
-use chrono::NaiveDate;
+use chrono::prelude::*;
 use indexmap::IndexMap;
 use sqlx::database::HasValueRef;
 use sqlx::error::BoxDynError;
@@ -37,13 +37,15 @@ pub struct GalleryEntity {
     pub parent: Option<i32>,
     /// 是否已删除
     pub deleted: bool,
+    /// 发布时间
+    pub posted: Option<NaiveDateTime>,
 }
 
 impl GalleryEntity {
     /// 创建一条记录
     #[tracing::instrument(level = Level::DEBUG)]
     pub async fn create(g: &EhGallery) -> Result<SqliteQueryResult> {
-        sqlx::query("REPLACE INTO gallery (id, token, title, title_jp, tags, favorite, pages, parent, deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        sqlx::query("REPLACE INTO gallery (id, token, title, title_jp, tags, favorite, pages, parent, deleted, posted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
             .bind(g.url.id())
             .bind(g.url.token())
             .bind(&g.title)
@@ -53,6 +55,7 @@ impl GalleryEntity {
             .bind(g.pages.len() as i32)
             .bind(g.parent.as_ref().map(|g| g.id()))
             .bind(false)
+            .bind(g.posted)
             .execute(&*DB)
             .await
     }

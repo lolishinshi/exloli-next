@@ -284,11 +284,12 @@ impl ExloliUploader {
     }
 
     pub async fn update_history_gallery_inner(&self, gallery: &GalleryEntity) -> Result<()> {
-        // 如果存在 favorite，说明所有字段都已经填充，只需要检查链接是否失效即可
-        if gallery.favorite.is_none() {
+        // 如果存在 posted，说明所有字段都已经填充，只需要检查链接是否失效即可
+        if gallery.posted.is_none() {
             let gallery = self.ehentai.get_gallery(&gallery.url()).await?;
             self.upload_gallery_page(&gallery).await?;
             GalleryEntity::create(&gallery).await?;
+            time::sleep(Duration::from_secs(2)).await;
         }
         let msg =
             MessageEntity::get_by_gallery_id(gallery.id).await?.ok_or(anyhow!("找不到消息"))?;
@@ -306,7 +307,8 @@ impl ExloliUploader {
 
         for page in &gallery.pages {
             // 如果新表中能查到，则不需要扫描
-            if ImageEntity::get_by_hash(page.hash()).await?.is_some() {
+            if let Some(image) = ImageEntity::get_by_hash(page.hash()).await? {
+                PageEntity::create(page.gallery_id(), page.page(), image.id).await?;
                 continue;
             };
             // 只扫描存在旧 telegraph 上传记录的页面

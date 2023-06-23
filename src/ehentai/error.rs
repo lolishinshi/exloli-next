@@ -10,4 +10,6 @@ pub enum EhError {
     InvalidURL(String),
     #[error("tokio join error: {0}")]
     JoinError(#[from] tokio::task::JoinError),
+    #[error("datetime error: {0}")]
+    DateTimeError(#[from] chrono::format::ParseError),
 }
