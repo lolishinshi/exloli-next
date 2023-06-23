@@ -142,7 +142,7 @@ impl ExloliUploader {
         Ok(())
     }
 
-    /// 重新发布指定画廊的文章
+    /// 重新发布指定画廊的文章，并更新消息
     pub async fn republish(&self, gallery: &GalleryEntity, msg: &MessageEntity) -> Result<()> {
         info!("重新发布：{} {}", gallery.url(), msg.id);
         let article = self.publish_telegraph_article(gallery).await?;
@@ -152,6 +152,11 @@ impl ExloliUploader {
             .await?;
         MessageEntity::update_telegraph(gallery.id, &article.url).await?;
         Ok(())
+    }
+
+    /// 检查 telegraph 文章是否正常
+    pub async fn check_telegraph(&self, url: &str) -> Result<bool> {
+        Ok(Client::new().head(url).send().await?.status() != StatusCode::NOT_FOUND)
     }
 }
 
@@ -187,10 +192,8 @@ impl ExloliUploader {
                     .buffered(concurrent);
                 while let Some((page, bytes)) = stream.next().await {
                     debug!("已下载: {}", page.page());
-                    match bytes {
-                        Ok(bytes) => tx.send((page, bytes)).await?,
-                        Err(e) => error!("下载失败 {:?}：{:?}", page, e),
-                    }
+                    // 注意：出现错误时此处应该上抛来终止下载过程，否则最终上传的画廊会缺页
+                    tx.send((page, bytes?)).await?;
                 }
                 Result::<()>::Ok(())
             }
@@ -284,8 +287,8 @@ impl ExloliUploader {
     }
 
     pub async fn update_history_gallery_inner(&self, gallery: &GalleryEntity) -> Result<()> {
-        // 如果存在 posted，说明所有字段都已经填充，只需要检查链接是否失效即可
-        if gallery.posted.is_none() {
+        // 重新扫描缺页或者根本没有记录页面的本子
+        if gallery.pages == 0 || gallery.pages != PageEntity::count(gallery.id).await? {
             let gallery = self.ehentai.get_gallery(&gallery.url()).await?;
             self.upload_gallery_page(&gallery).await?;
             GalleryEntity::create(&gallery).await?;
@@ -293,7 +296,7 @@ impl ExloliUploader {
         }
         let msg =
             MessageEntity::get_by_gallery_id(gallery.id).await?.ok_or(anyhow!("找不到消息"))?;
-        if Client::new().head(&msg.telegraph).send().await?.status() == StatusCode::NOT_FOUND {
+        if !self.check_telegraph(&msg.telegraph).await? {
             self.republish(gallery, &msg).await?;
         }
         time::sleep(Duration::from_secs(1)).await;
@@ -301,9 +304,11 @@ impl ExloliUploader {
     }
 
     /// 获取某个画廊里的所有图片，并添加记录
-    // TODO: 该功能需要移除
+    // TODO: 该功能需要移除或者合并到 upload_gallery_image 中
     async fn upload_gallery_page(&self, gallery: &EhGallery) -> Result<()> {
         static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"fileindex=(?P<fileindex>\d+)").unwrap());
+
+        let client = Client::builder().timeout(Duration::from_secs(30)).build()?;
 
         for page in &gallery.pages {
             // 如果新表中能查到，则不需要扫描
@@ -311,12 +316,17 @@ impl ExloliUploader {
                 PageEntity::create(page.gallery_id(), page.page(), image.id).await?;
                 continue;
             };
-            // 只扫描存在旧 telegraph 上传记录的页面
+            // 存在旧 telegraph 上传记录的页面，不需要上传，只需要记录 fileindex 和 page
             if let Some(telegraph) = ImageEntity::get_old_url_by_hash(page.hash()).await? {
                 let url = self.ehentai.get_image_url(page).await?;
                 let captures = RE.captures(&url).unwrap();
                 let fileindex = captures.name("fileindex").unwrap().as_str().parse().unwrap();
                 ImageEntity::create(fileindex, page.hash(), &telegraph).await?;
+                PageEntity::create(page.gallery_id(), page.page(), fileindex).await?;
+            } else {
+                let (fileindex, bytes) = self.ehentai.get_image_bytes(page).await?;
+                let resp = Telegraph::upload_with(&[ImageBytes(bytes)], &client).await?;
+                ImageEntity::create(fileindex, page.hash(), &resp[0].src).await?;
                 PageEntity::create(page.gallery_id(), page.page(), fileindex).await?;
             }
             time::sleep(Duration::from_secs(5)).await;

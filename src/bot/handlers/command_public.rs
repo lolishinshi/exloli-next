@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use rand::prelude::*;
-use reqwest::{StatusCode, Url};
+use reqwest::Url;
 use teloxide::dispatching::DpHandlerDescription;
 use teloxide::dptree::case;
 use teloxide::prelude::*;
@@ -13,7 +13,7 @@ use crate::bot::handlers::utils::{cmd_best_text, cmd_challenge_keyboard, url_of}
 use crate::bot::utils::ChallengeLocker;
 use crate::bot::Bot;
 use crate::config::Config;
-use crate::database::{ChallengeView, GalleryEntity, MessageEntity};
+use crate::database::{ChallengeView, GalleryEntity, MessageEntity, PageEntity};
 use crate::ehentai::{EhGalleryUrl, GalleryInfo};
 use crate::reply_to;
 use crate::tags::EhTagTransDB;
@@ -72,11 +72,15 @@ async fn cmd_update(bot: Bot, msg: Message, uploader: ExloliUploader, url: Url) 
         GalleryEntity::get(msg_entity.gallery_id).await?.ok_or(anyhow!("Gallery not found"))?;
 
     tokio::spawn(async move {
-        // 文章被删了，需要重新发布文章
-        if reqwest::get(&msg_entity.telegraph).await?.status() == StatusCode::NOT_FOUND {
-            uploader.update_history_gallery_inner(&gl_entity).await?;
+        // 如果检测到页面数量和实际页面数量不一致，需要重新发布文章
+        let force_republish = gl_entity.pages != PageEntity::count(gl_entity.id).await?;
+        // 调用 update_history_gallery_inner 来检测是否是缺页的画廊（包括旧画廊和异常画廊）
+        // 顺便还会把失效画廊重新上传
+        uploader.update_history_gallery_inner(&gl_entity).await?;
+        if force_republish {
+            uploader.republish(&gl_entity, &msg_entity).await?;
         }
-
+        // 最后看一下有没有 tag 或者标题需要更新
         uploader.try_update(&gl_entity.url(), false).await?;
         bot.edit_message_text(msg.chat.id, reply.id, "更新完成").await?;
         Result::<()>::Ok(())
