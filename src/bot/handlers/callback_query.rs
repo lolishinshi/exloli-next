@@ -11,7 +11,7 @@ use crate::bot::utils::{CallbackData, ChallengeLocker, RateLimiter};
 use crate::bot::Bot;
 use crate::config::Config;
 use crate::database::{ChallengeHistory, MessageEntity, PollEntity, VoteEntity};
-use crate::utils::tags::EhTagTransDB;
+use crate::tags::EhTagTransDB;
 
 pub fn callback_query_handler() -> Handler<'static, DependencyMap, Result<()>, DpHandlerDescription>
 {

@@ -16,8 +16,8 @@ use crate::config::Config;
 use crate::database::{ChallengeView, GalleryEntity, MessageEntity};
 use crate::ehentai::{EhGalleryUrl, GalleryInfo};
 use crate::reply_to;
+use crate::tags::EhTagTransDB;
 use crate::uploader::ExloliUploader;
-use crate::utils::tags::EhTagTransDB;
 
 pub fn public_command_handler() -> Handler<'static, DependencyMap, Result<()>, DpHandlerDescription>
 {

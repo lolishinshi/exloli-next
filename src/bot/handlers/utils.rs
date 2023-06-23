@@ -9,7 +9,7 @@ use teloxide::utils::html::link;
 
 use crate::bot::utils::CallbackData;
 use crate::database::{ChallengeView, GalleryEntity};
-use crate::utils::tags::EhTagTransDB;
+use crate::tags::EhTagTransDB;
 
 pub fn cmd_challenge_keyboard(
     id: i64,

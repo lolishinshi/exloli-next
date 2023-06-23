@@ -18,9 +18,9 @@ use crate::bot::Bot;
 use crate::config::Config;
 use crate::database::{GalleryEntity, ImageEntity, MessageEntity, PageEntity};
 use crate::ehentai::{EhClient, EhGallery, EhGalleryUrl, GalleryInfo};
+use crate::tags::EhTagTransDB;
 use crate::utils::imagebytes::ImageBytes;
 use crate::utils::pad_left;
-use crate::utils::tags::EhTagTransDB;
 
 #[derive(Debug, Clone)]
 pub struct ExloliUploader {

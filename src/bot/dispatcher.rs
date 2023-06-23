@@ -7,8 +7,8 @@ use super::handlers::*;
 use super::utils::{ChallengeLocker, RateLimiter};
 use super::Bot;
 use crate::config::Config;
+use crate::tags::EhTagTransDB;
 use crate::uploader::ExloliUploader;
-use crate::utils::tags::EhTagTransDB;
 
 pub async fn start_dispatcher(
     config: Config,

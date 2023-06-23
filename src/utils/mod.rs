@@ -2,7 +2,6 @@ use std::borrow::Cow;
 
 pub mod html;
 pub mod imagebytes;
-pub mod tags;
 
 /// 左填充空格
 pub fn pad_left(s: &str, len: usize) -> Cow<str> {
