@@ -22,7 +22,6 @@ async fn main() -> Result<()> {
         .unwrap();
 
     let trans = EhTagTransDB::new(&config.exhentai.trans_file);
-    trans.start().await;
     let ehentai = EhClient::new(&config.exhentai.cookie).await?;
     let bot = Bot::new(&config.telegram.token)
         .parse_mode(ParseMode::Html)
