@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Result};
+use rand::prelude::*;
 use reqwest::{StatusCode, Url};
 use teloxide::dispatching::DpHandlerDescription;
 use teloxide::dptree::case;
@@ -36,11 +37,12 @@ async fn cmd_challenge(
 ) -> Result<()> {
     info!("{}: /challenge", msg.from().unwrap().id);
     let challenge = ChallengeView::get_random().await?;
-    let id = locker.add_challenge(challenge[0].id, challenge[0].page, challenge[0].artist.clone());
+    let answer = challenge.choose(&mut thread_rng()).unwrap();
+    let id = locker.add_challenge(answer.id, answer.page, answer.artist.clone());
     let keyboard = cmd_challenge_keyboard(id, &challenge, &trans);
     bot.send_photo(
         msg.chat.id,
-        InputFile::url(format!("https://telegra.ph{}", challenge[0].url).parse()?),
+        InputFile::url(format!("https://telegra.ph{}", answer.url).parse()?),
     )
     .caption("上述图片来自下列哪位作者的本子？")
     .reply_markup(keyboard)
@@ -72,7 +74,7 @@ async fn cmd_update(bot: Bot, msg: Message, uploader: ExloliUploader, url: Url) 
     tokio::spawn(async move {
         // 文章被删了，需要重新发布文章
         if reqwest::get(&msg_entity.telegraph).await?.status() == StatusCode::NOT_FOUND {
-            uploader.republish(&gl_entity, &msg_entity).await?;
+            uploader.update_history_gallery_inner(&gl_entity).await?;
         }
 
         uploader.try_update(&gl_entity.url(), false).await?;

@@ -72,6 +72,7 @@ impl ExloliUploader {
             if let Err(err) = self.try_upload(&next, true).await {
                 error!("check_and_upload: {:?}\n{}", err, Backtrace::force_capture());
             }
+            time::sleep(Duration::from_secs(1)).await;
         }
     }
 
@@ -142,8 +143,8 @@ impl ExloliUploader {
     }
 
     /// 重新发布指定画廊的文章
-    #[tracing::instrument(skip(self))]
     pub async fn republish(&self, gallery: &GalleryEntity, msg: &MessageEntity) -> Result<()> {
+        info!("重新发布：{} {}", gallery.url(), msg.id);
         let article = self.publish_telegraph_article(gallery).await?;
         let text = self.create_message_text(gallery, &article.url).await?;
         self.bot
@@ -282,19 +283,19 @@ impl ExloliUploader {
         Ok(())
     }
 
-    async fn update_history_gallery_inner(&self, gallery: &GalleryEntity) -> Result<()> {
+    pub async fn update_history_gallery_inner(&self, gallery: &GalleryEntity) -> Result<()> {
         // 如果存在 favorite，说明所有字段都已经填充，只需要检查链接是否失效即可
-        if gallery.favorite.is_some() {
-            let msg =
-                MessageEntity::get_by_gallery_id(gallery.id).await?.ok_or(anyhow!("找不到消息"))?;
-            if reqwest::get(&msg.telegraph).await?.status() == StatusCode::NOT_FOUND {
-                self.republish(gallery, &msg).await?;
-            }
-        } else {
+        if gallery.favorite.is_none() {
             let gallery = self.ehentai.get_gallery(&gallery.url()).await?;
             self.upload_gallery_page(&gallery).await?;
             GalleryEntity::create(&gallery).await?;
         }
+        let msg =
+            MessageEntity::get_by_gallery_id(gallery.id).await?.ok_or(anyhow!("找不到消息"))?;
+        if Client::new().head(&msg.telegraph).send().await?.status() == StatusCode::NOT_FOUND {
+            self.republish(gallery, &msg).await?;
+        }
+        time::sleep(Duration::from_secs(1)).await;
         Ok(())
     }
 

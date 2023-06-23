@@ -35,7 +35,8 @@ async fn callback_challenge(
         let success = answer == artist;
         let msg_entity = MessageEntity::get_by_gallery_id(gallery).await?.context("找不到消息")?;
         let poll = PollEntity::get_by_gallery(gallery).await?.context("找不到投票")?;
-        ChallengeHistory::create(query.from.id.0 as i64, gallery, page, success).await?;
+        ChallengeHistory::create(query.from.id.0 as i64, gallery, page, success, message.chat.id.0)
+            .await?;
         let text = format!(
             "{} {}，答案是 {}（{}）\n消息：{}\n评分：{:.2}",
             user_mention(query.from.id.0 as i64, &query.from.full_name()),

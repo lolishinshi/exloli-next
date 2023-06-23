@@ -38,6 +38,8 @@ impl EhTagTransDB {
 
     /// 返回不经过任何修改的翻译结果，即多个结果之间用 | 分隔
     pub fn trans_raw<'a>(&'a self, namespace: &str, name: &'a str) -> &'a str {
+        // NOTE: 对于形如 nekogen | miyauchi takeshi 的 tag，只需要取第一部分翻译
+        let name = name.split(" | ").next().unwrap();
         for ns in &self.0.data {
             if ns.namespace == namespace {
                 return ns.data.get(name).map(|info| info.name.as_str()).unwrap_or(name);

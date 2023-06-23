@@ -23,16 +23,23 @@ pub struct ChallengeHistory {
     pub page: i32,
     pub success: bool,
     pub answer_time: NaiveDateTime,
+    pub chat_id: i64,
 }
 
 impl ChallengeView {
     pub async fn get_random() -> Result<Vec<Self>> {
         sqlx::query_as(
-            r#"SELECT * FROM (
+            r#"
+            SELECT * FROM (
+                -- 此处使用 group by 嵌套 random，因为默认情况下 group by 只会显示每组的第一个结果
                 SELECT * FROM (
-                    SELECT * FROM challenge_view WHERE score > 0.8 ORDER BY random()
+                    SELECT * FROM challenge_view
+                    WHERE score > 0.8 AND id NOT IN (
+                        -- 此处过滤掉出现在大于 5 个画廊中的图片，因为大概率是广告
+                        SELECT image_id FROM page GROUP BY image_id HAVING COUNT(gallery_id) > 5
+                    ) ORDER BY random()
                 ) GROUP BY artist
-            ) ORDER BY random() LIMIT 4;"#,
+            ) ORDER BY random() LIMIT 4"#,
         )
         .fetch_all(&*DB)
         .await
@@ -45,15 +52,17 @@ impl ChallengeHistory {
         gallery: i32,
         page: i32,
         success: bool,
+        chat_id: i64,
     ) -> Result<SqliteQueryResult> {
         sqlx::query(
-            "INSERT INTO challenge_history (user_id, gallery_id, page, success, answer_time) VALUES (?, ?, ?, ?, ?)"
+            "INSERT INTO challenge_history (user_id, gallery_id, page, success, answer_time, chat_id) VALUES (?, ?, ?, ?, ?, ?)"
         )
         .bind(user)
         .bind(gallery)
         .bind(page)
         .bind(success)
         .bind(Utc::now().naive_utc())
+        .bind(chat_id)
         .execute(&*DB)
         .await
     }
