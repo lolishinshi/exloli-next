@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use rand::prelude::*;
 use reqwest::Url;
 use teloxide::dispatching::DpHandlerDescription;
@@ -13,7 +13,7 @@ use crate::bot::handlers::utils::{cmd_best_text, cmd_challenge_keyboard, url_of}
 use crate::bot::utils::ChallengeLocker;
 use crate::bot::Bot;
 use crate::config::Config;
-use crate::database::{ChallengeView, GalleryEntity, MessageEntity, PageEntity};
+use crate::database::{ChallengeView, GalleryEntity, MessageEntity, PageEntity, PollEntity};
 use crate::ehentai::{EhGalleryUrl, GalleryInfo};
 use crate::reply_to;
 use crate::tags::EhTagTransDB;
@@ -99,9 +99,11 @@ async fn cmd_query(bot: Bot, msg: Message, cfg: Config, gallery: EhGalleryUrl) -
     info!("{}: /query {}", msg.from().unwrap().id, gallery);
     match GalleryEntity::get(gallery.id()).await? {
         Some(gallery) => {
-            let message = MessageEntity::get_by_gallery_id(gallery.id).await?.unwrap();
+            let message =
+                MessageEntity::get_by_gallery_id(gallery.id).await?.context("找不到消息")?;
+            let poll = PollEntity::get_by_gallery(gallery.id).await?.context("找不到投票")?;
             let url = url_of(cfg.telegram.channel_id, message.id);
-            reply_to!(bot, msg, url).await?;
+            reply_to!(bot, msg, format!("消息：{}\n评分：{:.2}", url, poll.score * 100.)).await?;
         }
         None => {
             reply_to!(bot, msg, "未找到").await?;
