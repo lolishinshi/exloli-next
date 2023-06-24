@@ -74,7 +74,7 @@ impl GalleryEntity {
     /// 根据消息 ID 获取一条记录
     pub async fn get_by_msg(id: i32) -> Result<Option<GalleryEntity>> {
         sqlx::query_as(
-            "SELECT * FROM gallery JOIN message ON gallery.id = message.gallery_id WHERE message.id = ? AND gallery.deleted = FALSE"
+            "SELECT gallery.* FROM gallery JOIN message ON gallery.id = message.gallery_id WHERE message.id = ? AND gallery.deleted = FALSE"
         )
             .bind(id)
             .fetch_optional(&*DB)

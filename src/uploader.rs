@@ -90,6 +90,7 @@ impl ExloliUploader {
         self.upload_gallery_image(&gallery).await?;
         let article = self.publish_telegraph_article(&gallery).await?;
         // 发送消息
+        // TODO: 回复父画廊
         let text = self.create_message_text(&gallery, &article.url).await?;
         let msg = self.bot.send_message(self.config.telegram.channel_id.clone(), text).await?;
         // 数据入库
@@ -275,9 +276,9 @@ impl ExloliUploader {
 impl ExloliUploader {
     /// 重新扫描并更新所有历史画廊，
     // TODO: 该功能需要移除
-    pub async fn update_history_gallery(&self, count: usize) -> Result<()> {
+    pub async fn update_history_gallery(&self, start: usize, end: usize) -> Result<()> {
         let galleries = GalleryEntity::all().await?;
-        for gallery in galleries.iter().take(count) {
+        for gallery in galleries.iter().skip(start).take(end - start) {
             info!("更新画廊 {}", gallery.url());
             if let Err(err) = self.update_history_gallery_inner(gallery).await {
                 error!("更新失败 {}", err);

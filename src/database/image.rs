@@ -45,7 +45,7 @@ impl ImageEntity {
     /// 获取指定画廊的所有图片，并且按页码排列
     #[tracing::instrument(level = Level::DEBUG)]
     pub async fn get_by_gallery_id(gallery_id: i32) -> Result<Vec<Self>> {
-        sqlx::query_as("SELECT * FROM image JOIN page ON page.image_id = image.id WHERE page.gallery_id = ? ORDER BY page.page")
+        sqlx::query_as("SELECT image.* FROM image JOIN page ON page.image_id = image.id WHERE page.gallery_id = ? ORDER BY page.page")
             .bind(gallery_id)
             .fetch_all(&*DB)
             .await
