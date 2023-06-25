@@ -32,7 +32,7 @@ async fn cmd_rescan(
 ) -> Result<()> {
     let reply = reply_to!(bot, msg, "更新中……").await?;
     tokio::spawn(async move {
-        uploader.update_history_gallery(start, end).await?;
+        uploader.rescan(start, end).await?;
         bot.edit_message_text(msg.chat.id, reply.id, "更新完成").await?;
         Result::<()>::Ok(())
     });

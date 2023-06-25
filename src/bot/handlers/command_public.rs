@@ -76,7 +76,7 @@ async fn cmd_update(bot: Bot, msg: Message, uploader: ExloliUploader, url: Url) 
         let force_republish = gl_entity.pages != PageEntity::count(gl_entity.id).await?;
         // 调用 update_history_gallery_inner 来检测是否是缺页的画廊（包括旧画廊和异常画廊）
         // 顺便还会把失效画廊重新上传
-        uploader.update_history_gallery_inner(&gl_entity).await?;
+        uploader.rescan_gallery(&gl_entity).await?;
         if force_republish {
             uploader.republish(&gl_entity, &msg_entity).await?;
         }
