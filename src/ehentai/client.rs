@@ -130,7 +130,7 @@ impl EhClient {
         // 英文标题、日文标题、父画廊
         let title = html.select_text("h1#gn").unwrap();
         let title_jp = html.select_text("h1#gj");
-        let parent = html.select_attr("td.gdt2 a", "href").map(EhGalleryUrl);
+        let parent = html.select_attr("td.gdt2 a", "href").and_then(|s| s.parse().ok());
 
         // 画廊 tag
         let mut tags = IndexMap::new();
@@ -169,7 +169,7 @@ impl EhClient {
             pages.extend(html.select_attrs("div.gdtm a", "href"));
         }
 
-        let pages = pages.into_iter().map(EhPageUrl).collect();
+        let pages = pages.into_iter().map(|s| s.parse()).collect::<Result<Vec<_>>>()?;
 
         Ok(EhGallery { url: url.clone(), title, title_jp, parent, tags, favorite, pages, posted })
     }
