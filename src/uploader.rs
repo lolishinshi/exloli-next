@@ -178,7 +178,7 @@ impl ExloliUploader {
         }
         info!("需要下载&上传 {} 张图片", pages.len());
 
-        let (tx, mut rx) = tokio::sync::mpsc::channel(self.config.threads_num);
+        let (tx, mut rx) = tokio::sync::mpsc::channel(self.config.threads_num * 2);
         let client = self.ehentai.clone();
         let concurrent = self.config.threads_num;
 
@@ -335,7 +335,7 @@ impl ExloliUploader {
                 ImageEntity::create(fileindex, page.hash(), &resp[0].src).await?;
                 PageEntity::create(page.gallery_id(), page.page(), fileindex).await?;
             }
-            time::sleep(Duration::from_secs(3)).await;
+            time::sleep(Duration::from_secs(5)).await;
         }
 
         Ok(())

@@ -2281,7 +2281,8 @@ checksum = "20f34339676cdcab560c9a82300c4c2581f68b9369aedf0fae86f2ff9565ff3e"
 [[package]]
 name = "telegraph-rs"
 version = "0.6.2"
-source = "git+https://github.com/Aloxaf/telegraph-rs#eddbc3dde3110585eebd80f25cb062ec338eadf3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b526aebb0691060ecdcec2dd98137a3e2527f7ed0cc06d63ae2a2d5f351dac3a"
 dependencies = [
  "html_parser",
  "mime_guess",
