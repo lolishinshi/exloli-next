@@ -8,8 +8,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use reqwest::{Client, StatusCode};
 use telegraph_rs::{html_to_node, Telegraph};
-use teloxide::payloads::SendGameSetters;
-use teloxide::prelude::Requester;
+use teloxide::prelude::*;
 use teloxide::types::MessageId;
 use teloxide::utils::html::{code_inline, link};
 use tokio::time;
@@ -94,11 +93,11 @@ impl ExloliUploader {
         let text = self.create_message_text(&gallery, &article.url).await?;
         // FIXME: 此处没有考虑到父画廊没有上传，但是父父画廊上传过的情况
         // 不过一般情况下画廊应该不会那么短时间内更新多次
-        let msg = if let Some(parent) = gallery.parent {
+        let msg = if let Some(parent) = &gallery.parent {
             if let Some(pmsg) = MessageEntity::get_by_gallery_id(parent.id()).await? {
                 self.bot
                     .send_message(self.config.telegram.channel_id.clone(), text)
-                    .reply_to_message_id(pmsg.id)
+                    .reply_to_message_id(MessageId(pmsg.id))
                     .await?
             } else {
                 self.bot.send_message(self.config.telegram.channel_id.clone(), text).await?
