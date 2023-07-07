@@ -304,6 +304,7 @@ impl ExloliUploader {
         // 重新扫描缺页或者根本没有记录页面的本子
         if gallery.posted.is_none()
             || gallery.pages == 0
+            || gallery.pages == 200  // TODO: 因为某个旧 BUG，某些画廊的页数只爬到了 200 页，处理完这些画廊后可以去掉这行
             || gallery.pages != PageEntity::count(gallery.id).await?
         {
             let gallery = self.ehentai.get_gallery(&gallery.url()).await?;

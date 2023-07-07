@@ -151,7 +151,7 @@ impl EhClient {
 
         // 每一页的 URL
         let mut pages = html.select_attrs("div.gdtl a", "href");
-        while let Some(next_page) = html.select_attr("table.ptt td:last-child", "href") {
+        while let Some(next_page) = html.select_attr("table.ptt td:last-child a", "href") {
             debug!(next_page);
             // FIXME: 此处的迷惑行为，不知道有没有更好的解决办法
             // 1. 由于 Html 结构体是 !Send 的，我们要避免在它被包含在 Future 的上下文中，否则这个 Future
