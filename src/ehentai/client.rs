@@ -166,7 +166,7 @@ impl EhClient {
                 })
             })?;
             html = Html::parse_document(&text);
-            pages.extend(html.select_attrs("div.gdtm a", "href"));
+            pages.extend(html.select_attrs("div.gdtl a", "href"));
         }
 
         let pages = pages.into_iter().map(|s| s.parse()).collect::<Result<Vec<_>>>()?;
