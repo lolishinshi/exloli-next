@@ -3,8 +3,7 @@ use std::time::Duration;
 
 use anyhow::{anyhow, Result};
 use chrono::{Datelike, Utc};
-use futures::{stream, StreamExt};
-use once_cell::sync::Lazy;
+use futures::StreamExt;
 use regex::Regex;
 use reqwest::{Client, StatusCode};
 use telegraph_rs::{html_to_node, Telegraph};
@@ -190,46 +189,46 @@ impl ExloliUploader {
         }
         info!("需要下载&上传 {} 张图片", pages.len());
 
-        let (tx, mut rx) = tokio::sync::mpsc::channel(self.config.threads_num * 2);
-        let client = self.ehentai.clone();
         let concurrent = self.config.threads_num;
+        let (tx, mut rx) = tokio::sync::mpsc::channel(concurrent * 2);
+        let client = self.ehentai.clone();
 
-        // E 站的图片是分布式存储的，所以并行下载
-        let downloader = tokio::spawn(
+        // 获取图片链接时不要并行，避免触发反爬限制
+        let getter = tokio::spawn(
             async move {
-                let mut stream = stream::iter(pages)
-                    .map(|page| {
-                        let client = client.clone();
-                        async move { (page.clone(), client.get_image_bytes(&page).await) }
-                    })
-                    .buffered(concurrent);
-                while let Some((page, bytes)) = stream.next().await {
-                    debug!("已下载: {}", page.page());
-                    // 注意：出现错误时此处应该上抛来终止下载过程，否则最终上传的画廊会缺页
-                    tx.send((page, bytes?)).await?;
+                for page in pages {
+                    let rst = client.get_image_url(&page).await?;
+                    tx.send((page, rst)).await?;
                 }
                 Result::<()>::Ok(())
             }
             .in_current_span(),
         );
 
-        // 依次将图片上传到 telegraph，并插入 ImageEntity 和 PageEntity 记录
-        let client = Client::builder().timeout(Duration::from_secs(30)).build()?;
+        // TODO: 实现并行
+        // 依次将图片下载并上传到 telegraph，并插入 ImageEntity 和 PageEntity 记录
+        // TODO: telegraph 上传应该也不用并行，只有图片下载因为时分布式存储，并行也没关系
+        let client = Client::builder()
+            .timeout(Duration::from_secs(30))
+            .connect_timeout(Duration::from_secs(30))
+            .build()?;
         let uploader = tokio::spawn(
             async move {
                 // TODO: 此处可以考虑一次上传多个图片，减少请求次数，避免触发 telegraph 的 rate limit
-                while let Some((page, (fileindex, bytes))) = rx.recv().await {
+                while let Some((page, (fileindex, url))) = rx.recv().await {
+                    let bytes = client.get(url).send().await?.bytes().await?.to_vec();
+                    debug!("已下载: {}", page.page());
                     let resp = Telegraph::upload_with(&[ImageBytes(bytes)], &client).await?;
+                    debug!("已上传: {}", page.page());
                     ImageEntity::create(fileindex, page.hash(), &resp[0].src).await?;
                     PageEntity::create(page.gallery_id(), page.page(), fileindex).await?;
-                    debug!("已上传: {}", page.page());
                 }
                 Result::<()>::Ok(())
             }
             .in_current_span(),
         );
 
-        let (first, second) = tokio::try_join!(downloader, uploader)?;
+        let (first, second) = tokio::try_join!(getter, uploader)?;
         first?;
         second?;
 
@@ -324,8 +323,6 @@ impl ExloliUploader {
     // TODO: 该功能需要移除或者合并到 upload_gallery_image 中
     async fn reupload_gallery(&self, gallery: &EhGallery) -> Result<()> {
         info!("重新扫描页面中");
-        static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"fileindex=(?P<fileindex>\d+)").unwrap());
-
         let client = Client::builder().timeout(Duration::from_secs(30)).build()?;
 
         for page in &gallery.pages {
@@ -336,9 +333,7 @@ impl ExloliUploader {
             };
             // 存在旧 telegraph 上传记录的页面，不需要上传，只需要记录 fileindex 和 page
             if let Some(telegraph) = ImageEntity::get_old_url_by_hash(page.hash()).await? {
-                let url = self.ehentai.get_image_url(page).await?;
-                let captures = RE.captures(&url).unwrap();
-                let fileindex = captures.name("fileindex").unwrap().as_str().parse().unwrap();
+                let (fileindex, _) = self.ehentai.get_image_url(page).await?;
                 ImageEntity::create(fileindex, page.hash(), &telegraph).await?;
                 PageEntity::create(page.gallery_id(), page.page(), fileindex).await?;
             // 否则下载并重新上传

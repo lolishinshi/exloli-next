@@ -170,29 +170,33 @@ impl EhClient {
         }
 
         let pages = pages.into_iter().map(|s| s.parse()).collect::<Result<Vec<_>>>()?;
+        info!("图片数量：{}", pages.len());
 
         Ok(EhGallery { url: url.clone(), title, title_jp, parent, tags, favorite, pages, posted })
     }
 
-    /// 获取画廊的某一页的图片实际地址
+    /// 获取画廊的某一页的图片的 fileindex 和实际地址
     #[tracing::instrument(skip(self))]
-    pub async fn get_image_url(&self, page: &EhPageUrl) -> Result<String> {
+    pub async fn get_image_url(&self, page: &EhPageUrl) -> Result<(u32, String)> {
         let resp = send!(self.0.get(page.url()))?;
         let html = Html::parse_document(&resp.text().await?);
-        Ok(html.select_attr("img#img", "src").unwrap())
+        let url = html.select_attr("img#img", "src").unwrap();
+        let fileindex = extract_fileindex(&url).unwrap();
+        Ok((fileindex, url))
     }
 
     /// 获取画廊的某一页的图片的 fileindex 和字节流
     #[tracing::instrument(skip(self))]
     pub async fn get_image_bytes(&self, page: &EhPageUrl) -> Result<(u32, Vec<u8>)> {
-        static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"fileindex=(?P<fileindex>\d+)").unwrap());
-
-        let url = self.get_image_url(page).await?;
-
-        let captures = RE.captures(&url).unwrap();
-        let fileindex = captures.name("fileindex").unwrap().as_str().parse().unwrap();
-
+        let (fileindex, url) = self.get_image_url(page).await?;
         let resp = send!(self.0.get(url))?;
         Ok((fileindex, resp.bytes().await?.to_vec()))
     }
+}
+
+fn extract_fileindex(url: &str) -> Option<u32> {
+    static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"fileindex=(?P<fileindex>\d+)").unwrap());
+    let captures = RE.captures(&url)?;
+    let fileindex = captures.name("fileindex")?.as_str().parse().ok()?;
+    Some(fileindex)
 }
