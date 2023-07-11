@@ -61,7 +61,8 @@ impl EhClient {
         let client = Client::builder()
             .cookie_store(true)
             .default_headers(headers)
-            .timeout(Duration::from_secs(15))
+            .timeout(Duration::from_secs(30))
+            .connect_timeout(Duration::from_secs(30))
             .build()?;
 
         // 获取必要的 cookie

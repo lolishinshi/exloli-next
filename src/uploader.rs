@@ -198,6 +198,7 @@ impl ExloliUploader {
             async move {
                 for page in pages {
                     let rst = client.get_image_url(&page).await?;
+                    info!("已解析：{}", page.page());
                     tx.send((page, rst)).await?;
                 }
                 Result::<()>::Ok(())
