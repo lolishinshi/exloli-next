@@ -1,4 +1,3 @@
-use reqwest::Url;
 use teloxide::utils::command::BotCommands;
 
 use crate::ehentai::EhGalleryUrl;
@@ -22,7 +21,7 @@ pub enum AdminCommand {
 #[command(rename_rule = "lowercase")]
 pub enum PublicCommand {
     #[command(description = "根据消息 URL 更新一个指定画廊")]
-    Update(Url),
+    Update(String),
     #[command(description = "根据 E 站 URL 查询一个指定画廊")]
     Query(EhGalleryUrl),
     #[command(

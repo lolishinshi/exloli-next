@@ -59,14 +59,20 @@ async fn cmd_best(bot: Bot, msg: Message, (end, start): (u16, u16), cfg: Config)
     Ok(())
 }
 
-async fn cmd_update(bot: Bot, msg: Message, uploader: ExloliUploader, url: Url) -> Result<()> {
+async fn cmd_update(bot: Bot, msg: Message, uploader: ExloliUploader, url: String) -> Result<()> {
     info!("{}: /update {}", msg.from().unwrap().id, url);
     let reply = reply_to!(bot, msg, "更新中……").await?;
-    let msg_id = url
-        .path_segments()
-        .and_then(|p| p.last())
-        .and_then(|id| id.parse::<i32>().ok())
-        .ok_or(anyhow!("Invalid URL"))?;
+    let msg_id = if url.is_empty() {
+        msg.reply_to_message()
+            .and_then(|msg| msg.forward_from_message_id())
+            .ok_or(anyhow!("Invalid URL"))?
+    } else {
+        Url::parse(&url)?
+            .path_segments()
+            .and_then(|p| p.last())
+            .and_then(|id| id.parse::<i32>().ok())
+            .ok_or(anyhow!("Invalid URL"))?
+    };
     let msg_entity = MessageEntity::get(msg_id).await?.ok_or(anyhow!("Message not found"))?;
     let gl_entity =
         GalleryEntity::get(msg_entity.gallery_id).await?.ok_or(anyhow!("Gallery not found"))?;
