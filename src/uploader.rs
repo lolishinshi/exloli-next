@@ -288,9 +288,9 @@ impl ExloliUploader {
 impl ExloliUploader {
     /// 重新扫描并更新所有历史画廊，
     // TODO: 该功能需要移除
-    pub async fn rescan(&self, start: usize, end: usize) -> Result<()> {
-        let galleries = GalleryEntity::all().await?;
-        for gallery in galleries.iter().skip(start).take(end - start) {
+    pub async fn rescan(&self) -> Result<()> {
+        let galleries = GalleryEntity::list_scans().await?;
+        for gallery in galleries.iter() {
             info!("更新画廊 {}", gallery.url());
             if let Err(err) = self.rescan_gallery(gallery).await {
                 error!("更新失败 {}", err);
@@ -301,52 +301,12 @@ impl ExloliUploader {
 
     #[instrument(skip_all, fields(gallery = %gallery.url()))]
     pub async fn rescan_gallery(&self, gallery: &GalleryEntity) -> Result<()> {
-        // 重新扫描缺页或者根本没有记录页面的本子
-        if gallery.posted.is_none()
-            || gallery.pages == 0
-            || gallery.pages == 200  // TODO: 因为某个旧 BUG，某些画廊的页数只爬到了 200 页，处理完这些画廊后可以去掉这行
-            || gallery.pages != PageEntity::count(gallery.id).await?
-        {
-            let gallery = self.ehentai.get_gallery(&gallery.url()).await?;
-            self.reupload_gallery(&gallery).await?;
-            GalleryEntity::create(&gallery).await?;
-        }
         let msg =
             MessageEntity::get_by_gallery_id(gallery.id).await?.ok_or(anyhow!("找不到消息"))?;
         if !self.check_telegraph(&msg.telegraph).await? {
             self.republish(gallery, &msg).await?;
         }
         time::sleep(Duration::from_secs(1)).await;
-        Ok(())
-    }
-
-    /// 获取某个画廊里的所有图片，并添加记录
-    // TODO: 该功能需要移除或者合并到 upload_gallery_image 中
-    async fn reupload_gallery(&self, gallery: &EhGallery) -> Result<()> {
-        info!("重新扫描页面中");
-        let client = Client::builder().timeout(Duration::from_secs(30)).build()?;
-
-        for page in &gallery.pages {
-            // 如果新表中能查到，则不需要扫描
-            if let Some(image) = ImageEntity::get_by_hash(page.hash()).await? {
-                PageEntity::create(page.gallery_id(), page.page(), image.id).await?;
-                continue;
-            };
-            // 存在旧 telegraph 上传记录的页面，不需要上传，只需要记录 fileindex 和 page
-            if let Some(telegraph) = ImageEntity::get_old_url_by_hash(page.hash()).await? {
-                let (fileindex, _) = self.ehentai.get_image_url(page).await?;
-                ImageEntity::create(fileindex, page.hash(), &telegraph).await?;
-                PageEntity::create(page.gallery_id(), page.page(), fileindex).await?;
-            // 否则下载并重新上传
-            } else {
-                let (fileindex, bytes) = self.ehentai.get_image_bytes(page).await?;
-                let resp = Telegraph::upload_with(&[ImageBytes(bytes)], &client).await?;
-                ImageEntity::create(fileindex, page.hash(), &resp[0].src).await?;
-                PageEntity::create(page.gallery_id(), page.page(), fileindex).await?;
-            }
-            time::sleep(Duration::from_secs(5)).await;
-        }
-
         Ok(())
     }
 }

@@ -1,6 +1,7 @@
 use std::ops::Deref;
 
 use chrono::prelude::*;
+use chrono::Duration;
 use indexmap::IndexMap;
 use sqlx::database::HasValueRef;
 use sqlx::error::BoxDynError;
@@ -141,15 +142,16 @@ impl GalleryEntity {
         .await
     }
 
-    /// 列出所有画廊，按分数倒序
-    pub async fn all() -> Result<Vec<Self>> {
+    /// 列出所有 80 分以上或最近两个月上传的画廊
+    pub async fn list_scans() -> Result<Vec<Self>> {
+        let since = Utc::now().date_naive() - Duration::days(60);
         sqlx::query_as(
             r#"SELECT gallery.*
             FROM gallery
             JOIN poll ON poll.gallery_id = gallery.id
-            WHERE gallery.deleted = FALSE
-            ORDER BY poll.score DESC"#,
+            WHERE gallery.deleted = FALSE AND (poll.score >= 0.8 OR gallery.posted >= ?)"#,
         )
+        .bind(since)
         .fetch_all(&*DB)
         .await
     }

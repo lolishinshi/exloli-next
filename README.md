@@ -1,12 +1,6 @@
 # exloli-next
 
-新一代的 exloli 客户端
-
-## 特点
-
-功能上其实没变，只是砍掉了大量没啥意义的功能，并且重新设计了数据库结构
-
-而且代码质量从「不能看」进化到了「能看」的程度！（
+因为受不了当初乱写代码的自己而重写的新一代的 exloli 客户端
 
 ## 配置文件
 
@@ -32,7 +26,7 @@ search_params = [
 # 搜索多少本本子（注意不是页数）
 # 将此处设置为 0，就不会主动上传任何本子
 search_count = 10
-# 翻译文件的位置
+# 翻译文件的位置，每隔半小时自动更新
 # 前往 https://github.com/EhTagTranslation/Database 下载
 trans_file = "db.text.json"
 

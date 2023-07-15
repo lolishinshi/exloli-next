@@ -20,19 +20,14 @@ pub fn admin_command_handler() -> Handler<'static, DependencyMap, Result<()>, Dp
         .branch(case![AdminCommand::Upload(gallery)].endpoint(cmd_upload))
         .branch(case![AdminCommand::Delete].endpoint(cmd_delete))
         .branch(case![AdminCommand::Erase].endpoint(cmd_delete))
-        .branch(case![AdminCommand::ReScan(start, end)].endpoint(cmd_rescan))
+        .branch(case![AdminCommand::ReScan].endpoint(cmd_rescan))
 }
 
 // TODO: 该功能需要移除
-async fn cmd_rescan(
-    bot: Bot,
-    msg: Message,
-    uploader: ExloliUploader,
-    (start, end): (usize, usize),
-) -> Result<()> {
+async fn cmd_rescan(bot: Bot, msg: Message, uploader: ExloliUploader) -> Result<()> {
     let reply = reply_to!(bot, msg, "更新中……").await?;
     tokio::spawn(async move {
-        uploader.rescan(start, end).await?;
+        uploader.rescan().await?;
         bot.edit_message_text(msg.chat.id, reply.id, "更新完成").await?;
         Result::<()>::Ok(())
     });
