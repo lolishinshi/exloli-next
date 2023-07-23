@@ -119,7 +119,7 @@ impl ExloliUploader {
             Some(v) => v,
             _ => return Ok(()),
         };
-        let message = MessageEntity::get_by_gallery_id(gallery.id()).await?.unwrap();
+        let message = MessageEntity::get_by_gallery_id(gallery.id()).await?.ok_or(anyhow!("找不到消息"))?;
 
         // 2 天内创建的画廊，每天都尝试更新
         // 7 天内创建的画廊，每 3 天尝试更新
