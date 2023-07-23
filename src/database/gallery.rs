@@ -11,6 +11,7 @@ use sqlx::{Database, Result, Sqlite};
 use tracing::Level;
 
 use super::db::DB;
+use crate::config::CHANNEL_ID;
 use crate::ehentai::EhGallery;
 
 // 此处使用 IndexMap，因为我们需要保证相同的 tag 每次序列化的结果都是一样的
@@ -75,8 +76,9 @@ impl GalleryEntity {
     /// 根据消息 ID 获取一条记录
     pub async fn get_by_msg(id: i32) -> Result<Option<GalleryEntity>> {
         sqlx::query_as(
-            "SELECT gallery.* FROM gallery JOIN message ON gallery.id = message.gallery_id WHERE message.id = ? AND gallery.deleted = FALSE"
+            "SELECT gallery.* FROM gallery JOIN message ON gallery.id = message.gallery_id AND message.channel_id = ? WHERE message.id = ? AND gallery.deleted = FALSE"
         )
+            .bind(CHANNEL_ID.get().unwrap())
             .bind(id)
             .fetch_optional(&*DB)
             .await
