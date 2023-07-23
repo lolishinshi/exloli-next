@@ -4,9 +4,11 @@ mod gallery;
 mod image;
 mod message;
 mod poll;
+mod telegraph;
 
 pub use challenge::*;
 pub use gallery::*;
 pub use image::*;
 pub use message::*;
 pub use poll::*;
+pub use telegraph::*;

@@ -2,8 +2,11 @@ use std::time::Duration;
 
 use anyhow::Result;
 use duration_str::deserialize_duration;
+use once_cell::sync::OnceCell;
 use serde::Deserialize;
 use teloxide::types::{ChatId, Recipient};
+
+pub static CHANNEL_ID: OnceCell<String> = OnceCell::new();
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {

@@ -118,7 +118,7 @@ impl GalleryEntity {
     }
 
     /// 查询自指定日期以来的本子，结果按分数从高到低排列
-    /// 返回 分数、标题、消息 ID
+    /// 返回 分数、标题、画廊 ID
     #[tracing::instrument(level = Level::DEBUG)]
     pub async fn list(
         start: NaiveDate,
@@ -127,7 +127,7 @@ impl GalleryEntity {
         page: i32,
     ) -> Result<Vec<(f32, String, i32)>> {
         sqlx::query_as(
-            r#"SELECT poll.score, gallery.title, message.id
+            r#"SELECT poll.score, gallery.title, gallery.id
             FROM gallery
             JOIN poll ON poll.gallery_id = gallery.id
             JOIN message ON message.gallery_id = gallery.id

@@ -7,9 +7,10 @@ use teloxide::prelude::*;
 use teloxide::types::InputFile;
 use tracing::info;
 
+use super::utils::gallery_preview_url;
 use crate::bot::command::PublicCommand;
 use crate::bot::handlers::cmd_best_keyboard;
-use crate::bot::handlers::utils::{cmd_best_text, cmd_challenge_keyboard, url_of};
+use crate::bot::handlers::utils::{cmd_best_text, cmd_challenge_keyboard};
 use crate::bot::utils::ChallengeLocker;
 use crate::bot::Bot;
 use crate::config::Config;
@@ -55,7 +56,7 @@ async fn cmd_best(bot: Bot, msg: Message, (end, start): (u16, u16), cfg: Config)
     info!("{}: /best {} {}", msg.from().unwrap().id, end, start);
     let text = cmd_best_text(start as i32, end as i32, 0, cfg.telegram.channel_id).await?;
     let keyboard = cmd_best_keyboard(start as i32, end as i32, 0);
-    reply_to!(bot, msg, text).reply_markup(keyboard).await?;
+    reply_to!(bot, msg, text).reply_markup(keyboard).disable_web_page_preview(true).await?;
     Ok(())
 }
 
@@ -105,10 +106,8 @@ async fn cmd_query(bot: Bot, msg: Message, cfg: Config, gallery: EhGalleryUrl) -
     info!("{}: /query {}", msg.from().unwrap().id, gallery);
     match GalleryEntity::get(gallery.id()).await? {
         Some(gallery) => {
-            let message =
-                MessageEntity::get_by_gallery_id(gallery.id).await?.context("找不到消息")?;
             let poll = PollEntity::get_by_gallery(gallery.id).await?.context("找不到投票")?;
-            let url = url_of(cfg.telegram.channel_id, message.id);
+            let url = gallery_preview_url(cfg.telegram.channel_id, gallery.id).await?;
             reply_to!(bot, msg, format!("消息：{}\n评分：{:.2}", url, poll.score * 100.)).await?;
         }
         None => {

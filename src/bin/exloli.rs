@@ -2,7 +2,7 @@ use std::env;
 
 use anyhow::Result;
 use exloli_next::bot::start_dispatcher;
-use exloli_next::config::Config;
+use exloli_next::config::{Config, CHANNEL_ID};
 use exloli_next::ehentai::EhClient;
 use exloli_next::tags::EhTagTransDB;
 use exloli_next::uploader::ExloliUploader;
@@ -11,7 +11,9 @@ use teloxide::types::ParseMode;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let config = Config::new("./config.toml").unwrap();
+    let config = Config::new("./config.toml")?;
+    CHANNEL_ID.set(config.telegram.channel_id.to_string()).unwrap();
+
     // NOTE: 全局数据库连接需要用这个变量初始化
     env::set_var("DATABASE_URL", &config.database_url);
     env::set_var("RUST_LOG", &config.log_level);

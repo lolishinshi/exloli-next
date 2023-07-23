@@ -15,7 +15,7 @@ use tracing::{debug, error, info, instrument, Instrument};
 
 use crate::bot::Bot;
 use crate::config::Config;
-use crate::database::{GalleryEntity, ImageEntity, MessageEntity, PageEntity};
+use crate::database::{GalleryEntity, ImageEntity, MessageEntity, PageEntity, TelegraphEntity};
 use crate::ehentai::{EhClient, EhGallery, EhGalleryUrl, GalleryInfo};
 use crate::tags::EhTagTransDB;
 use crate::utils::imagebytes::ImageBytes;
@@ -105,7 +105,8 @@ impl ExloliUploader {
             self.bot.send_message(self.config.telegram.channel_id.clone(), text).await?
         };
         // 数据入库
-        MessageEntity::create(msg.id.0, gallery.url.id(), &article.url).await?;
+        MessageEntity::create(msg.id.0, gallery.url.id()).await?;
+        TelegraphEntity::create(gallery.url.id(), &article.url).await?;
         GalleryEntity::create(&gallery).await?;
 
         Ok(())
@@ -139,7 +140,8 @@ impl ExloliUploader {
         let gallery = self.ehentai.get_gallery(gallery).await?;
 
         if gallery.tags != entity.tags.0 || gallery.title != entity.title {
-            let text = self.create_message_text(&gallery, &message.telegraph).await?;
+            let telegraph = TelegraphEntity::get(gallery.url.id()).await?.unwrap();
+            let text = self.create_message_text(&gallery, &telegraph.url).await?;
             self.bot
                 .edit_message_text(
                     self.config.telegram.channel_id.clone(),
@@ -162,7 +164,7 @@ impl ExloliUploader {
         self.bot
             .edit_message_text(self.config.telegram.channel_id.clone(), MessageId(msg.id), text)
             .await?;
-        MessageEntity::update_telegraph(gallery.id, &article.url).await?;
+        TelegraphEntity::update(gallery.id, &article.url).await?;
         Ok(())
     }
 
@@ -301,9 +303,11 @@ impl ExloliUploader {
 
     #[instrument(skip_all, fields(gallery = %gallery.url()))]
     pub async fn rescan_gallery(&self, gallery: &GalleryEntity) -> Result<()> {
+        let telegraph =
+            TelegraphEntity::get(gallery.id).await?.ok_or(anyhow!("找不到 telegraph"))?;
         let msg =
             MessageEntity::get_by_gallery_id(gallery.id).await?.ok_or(anyhow!("找不到消息"))?;
-        if !self.check_telegraph(&msg.telegraph).await? {
+        if !self.check_telegraph(&telegraph.url).await? {
             self.republish(gallery, &msg).await?;
         }
         time::sleep(Duration::from_secs(1)).await;

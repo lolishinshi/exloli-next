@@ -2,15 +2,15 @@ use anyhow::{Context, Result};
 use teloxide::dispatching::DpHandlerDescription;
 use teloxide::dptree::case;
 use teloxide::prelude::*;
-use teloxide::utils::html::user_mention;
+use teloxide::utils::html::{link, user_mention};
 use tracing::info;
 
-use super::utils::url_of;
+use super::utils::gallery_preview_url;
 use crate::bot::handlers::{cmd_best_keyboard, cmd_best_text, poll_keyboard};
 use crate::bot::utils::{CallbackData, ChallengeLocker, RateLimiter};
 use crate::bot::Bot;
 use crate::config::Config;
-use crate::database::{ChallengeHistory, MessageEntity, PollEntity, VoteEntity};
+use crate::database::{ChallengeHistory, GalleryEntity, PollEntity, VoteEntity};
 use crate::tags::EhTagTransDB;
 
 pub fn callback_query_handler() -> Handler<'static, DependencyMap, Result<()>, DpHandlerDescription>
@@ -31,21 +31,24 @@ async fn callback_challenge(
 ) -> Result<()> {
     let message = query.message.context("消息过旧")?;
     info!("{}: <- challenge {} {}", query.from.id, id, artist);
+
     if let Some((gallery, page, answer)) = locker.get_challenge(id) {
         let success = answer == artist;
-        let msg_entity = MessageEntity::get_by_gallery_id(gallery).await?.context("找不到消息")?;
+        let gallery_entity = GalleryEntity::get(gallery).await?.context("找不到画廊")?;
+        let preview = gallery_preview_url(cfg.telegram.channel_id, gallery).await?;
         let poll = PollEntity::get_by_gallery(gallery).await?.context("找不到投票")?;
         ChallengeHistory::create(query.from.id.0 as i64, gallery, page, success, message.chat.id.0)
             .await?;
         let text = format!(
-            "{} {}，答案是 {}（{}）\n消息：{}\n评分：{:.2}",
+            "{} {}，答案是 {}（{}）\n预览：{}\n评分：{:.2}",
             user_mention(query.from.id.0 as i64, &query.from.full_name()),
             if success { "答对了！" } else { "答错了……" },
             trans.trans_raw("artist", &answer),
             &answer,
-            url_of(cfg.telegram.channel_id, msg_entity.id),
+            link(&preview, &gallery_entity.title_jp.unwrap_or(gallery_entity.title)),
             poll.score * 100.,
         );
+
         bot.edit_message_caption(message.chat.id, message.id).caption(text).await?;
     }
     Ok(())
@@ -103,7 +106,10 @@ async fn callback_change_page(
     let keyboard = cmd_best_keyboard(from, to, offset);
 
     if let Some(message) = query.message {
-        bot.edit_message_text(message.chat.id, message.id, text).reply_markup(keyboard).await?;
+        bot.edit_message_text(message.chat.id, message.id, text)
+            .reply_markup(keyboard)
+            .disable_web_page_preview(true)
+            .await?;
     }
 
     Ok(())

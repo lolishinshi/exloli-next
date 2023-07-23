@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use chrono::{Duration, Utc};
 use reqwest::Url;
 use teloxide::prelude::*;
@@ -8,7 +8,7 @@ use teloxide::types::{
 use teloxide::utils::html::link;
 
 use crate::bot::utils::CallbackData;
-use crate::database::{ChallengeView, GalleryEntity};
+use crate::database::{ChallengeView, GalleryEntity, MessageEntity, TelegraphEntity};
 use crate::tags::EhTagTransDB;
 
 pub fn cmd_challenge_keyboard(
@@ -32,19 +32,15 @@ pub async fn cmd_best_text(
 ) -> Result<String> {
     let start = Utc::now().date_naive() - Duration::days(start as i64);
     let end = Utc::now().date_naive() - Duration::days(end as i64);
-    let text = GalleryEntity::list(start, end, 20, offset)
-        .await?
-        .iter()
-        .map(|(score, title, msgid)| {
-            format!(
-                "<code>{:.2}</code> - {}",
-                score * 100.,
-                link(url_of(channel.clone(), *msgid).as_str(), title),
-            )
-        })
-        .collect::<Vec<_>>()
-        .join("\n");
-    Ok(format!("最近 {} ~ {} 天的本子排名（{}）\n", start, end, offset) + &text)
+
+    let mut text = format!("最近 {start} ~ {end} 天的本子排名（{offset}）");
+
+    for (score, title, gid) in GalleryEntity::list(start, end, 20, offset).await? {
+        let url = gallery_preview_url(channel.clone(), gid).await?;
+        text.push_str(&format!("\n<code>{:.2}</code> - {}", score * 100., link(&url, &title),));
+    }
+
+    Ok(text)
 }
 
 pub fn cmd_best_keyboard(from: i32, to: i32, offset: i32) -> InlineKeyboardMarkup {
@@ -86,4 +82,14 @@ pub fn poll_keyboard(poll_id: i32, votes: &[i32; 5]) -> InlineKeyboardMarkup {
         .collect::<Vec<_>>();
 
     InlineKeyboardMarkup::new(options)
+}
+
+pub async fn gallery_preview_url(channel_id: Recipient, gallery_id: i32) -> Result<String> {
+    if let Some(msg) = MessageEntity::get_by_gallery_id(gallery_id).await? {
+        return Ok(url_of(channel_id, msg.id).to_string());
+    }
+    if let Some(telehraph) = TelegraphEntity::get(gallery_id).await? {
+        return Ok(telehraph.url);
+    }
+    Err(anyhow!("找不到画廊"))
 }
