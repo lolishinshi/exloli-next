@@ -13,7 +13,7 @@ pub struct TelegraphEntity {
 
 impl TelegraphEntity {
     pub async fn create(gallery_id: i32, telegraph: &str) -> Result<SqliteQueryResult> {
-        sqlx::query("INSERT INTO telegraph (gallery_id, url) VALUES (?, ?)")
+        sqlx::query("REPLACE INTO telegraph (gallery_id, url) VALUES (?, ?)")
             .bind(gallery_id)
             .bind(telegraph)
             .execute(&*DB)

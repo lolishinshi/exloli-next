@@ -24,10 +24,10 @@ pub async fn custom_pool_sender(bot: Bot, message: Message) -> Result<()> {
         None => match gallery.parent {
             Some(id) => match PollEntity::get_by_gallery(id).await? {
                 Some(v) => v.id,
-                // 如果还是没有，则使用其消息 ID
-                None => msg_id as i64,
+                // 如果还是没有，则使用其画廊 ID
+                None => gallery.id as i64,
             },
-            None => msg_id as i64,
+            None => gallery.id as i64,
         },
     };
 
