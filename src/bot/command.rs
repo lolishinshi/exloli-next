@@ -20,6 +20,8 @@ pub enum AdminCommand {
 #[derive(BotCommands, Clone, PartialEq, Debug)]
 #[command(rename_rule = "lowercase")]
 pub enum PublicCommand {
+    #[command(description = "根据 E 站 URL 上传一个曾经上传过的画廊")]
+    Upload(EhGalleryUrl),
     #[command(description = "根据消息 URL 更新一个指定画廊")]
     Update(String),
     #[command(description = "根据 E 站 URL 查询一个指定画廊")]

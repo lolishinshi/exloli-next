@@ -85,7 +85,7 @@ pub fn poll_keyboard(poll_id: i32, votes: &[i32; 5]) -> InlineKeyboardMarkup {
 }
 
 pub async fn gallery_preview_url(channel_id: Recipient, gallery_id: i32) -> Result<String> {
-    if let Some(msg) = MessageEntity::get_by_gallery_id(gallery_id).await? {
+    if let Some(msg) = MessageEntity::get_by_gallery(gallery_id).await? {
         return Ok(url_of(channel_id, msg.id).to_string());
     }
     if let Some(telehraph) = TelegraphEntity::get(gallery_id).await? {

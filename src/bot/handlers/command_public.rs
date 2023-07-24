@@ -28,6 +28,27 @@ pub fn public_command_handler() -> Handler<'static, DependencyMap, Result<()>, D
         .branch(case![PublicCommand::Update(url)].endpoint(cmd_update))
         .branch(case![PublicCommand::Best(from, to)].endpoint(cmd_best))
         .branch(case![PublicCommand::Challenge].endpoint(cmd_challenge))
+        .branch(case![PublicCommand::Upload(gallery)].endpoint(cmd_upload))
+}
+
+async fn cmd_upload(
+    bot: Bot,
+    msg: Message,
+    uploader: ExloliUploader,
+    gallery: EhGalleryUrl,
+) -> Result<()> {
+    info!("{}: /upload {}", msg.from().unwrap().id, gallery);
+    if GalleryEntity::get(gallery.id()).await?.is_none() {
+        reply_to!(bot, msg, "非管理员只能上传存在上传记录的画廊").await?;
+    } else {
+        let reply = reply_to!(bot, msg, "上传中……").await?;
+        tokio::spawn(async move {
+            uploader.try_upload(&gallery, true).await?;
+            bot.edit_message_text(msg.chat.id, reply.id, "上传完成").await?;
+            Result::<()>::Ok(())
+        });
+    }
+    Ok(())
 }
 
 async fn cmd_challenge(

@@ -66,6 +66,7 @@ async fn cmd_delete(bot: Bot, msg: Message, command: AdminCommand) -> Result<()>
         GalleryEntity::update_deleted(msg_entity.gallery_id, true).await?;
     } else {
         GalleryEntity::delete(msg_entity.gallery_id).await?;
+        MessageEntity::delete(channel_msg).await?;
     }
 
     Ok(())

@@ -20,13 +20,13 @@ pub struct MessageEntity {
 
 impl MessageEntity {
     #[tracing::instrument(level = Level::DEBUG)]
-    pub async fn create(id: i32, gallery_id: i32) -> Result<SqliteQueryResult> {
+    pub async fn create(id: i32, gid: i32) -> Result<SqliteQueryResult> {
         sqlx::query(
             "INSERT INTO message (id, channel_id, gallery_id, publish_date) VALUES (?, ?, ?, ?)",
         )
         .bind(id)
         .bind(CHANNEL_ID.get().unwrap())
-        .bind(gallery_id)
+        .bind(gid)
         .bind(Utc::now().date_naive())
         .execute(&*DB)
         .await
@@ -52,9 +52,9 @@ impl MessageEntity {
     }
 
     #[tracing::instrument(level = Level::DEBUG)]
-    pub async fn get_by_gallery_id(gallery_id: i32) -> Result<Option<MessageEntity>> {
+    pub async fn get_by_gallery(gid: i32) -> Result<Option<MessageEntity>> {
         sqlx::query_as("SELECT * FROM message WHERE gallery_id = ? AND channel_id = ? ORDER BY publish_date DESC")
-            .bind(gallery_id)
+            .bind(gid)
             .bind(CHANNEL_ID.get().unwrap())
             .fetch_optional(&*DB)
             .await

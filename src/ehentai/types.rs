@@ -9,7 +9,7 @@ use regex::Regex;
 use super::error::EhError;
 use crate::database::GalleryEntity;
 
-// 画廊地址，格式为 https://e-hentai.org/g/2549143/16b1b7bab0/
+// 画廊地址，格式为 https://exhentai.org/g/2549143/16b1b7bab0/
 #[derive(Debug, Clone, PartialEq)]
 pub struct EhGalleryUrl {
     id: i32,
@@ -38,7 +38,7 @@ impl FromStr for EhGalleryUrl {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         static RE: Lazy<Regex> = Lazy::new(|| {
-            Regex::new(r"https://exhentai.org/g/(?P<id>\d+)/(?P<token>[^/]+)").unwrap()
+            Regex::new(r"https://e.hentai.org/g/(?P<id>\d+)/(?P<token>[^/]+)").unwrap()
         });
         let captures = RE.captures(s).ok_or_else(|| EhError::InvalidURL(s.to_owned()))?;
         // NOTE: 由于是正则匹配出来的结果，此处 unwrap 不会造成 panic
@@ -89,7 +89,7 @@ impl FromStr for EhPageUrl {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         static RE: Lazy<Regex> = Lazy::new(|| {
-            Regex::new(r"https://exhentai.org/s/(?P<hash>.+)/(?P<id>\d+)-(?P<page>\d+)").unwrap()
+            Regex::new(r"https://e.hentai.org/s/(?P<hash>.+)/(?P<id>\d+)-(?P<page>\d+)").unwrap()
         });
 
         let captures = RE.captures(s).ok_or_else(|| EhError::InvalidURL(s.to_owned()))?;

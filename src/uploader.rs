@@ -80,7 +80,10 @@ impl ExloliUploader {
     /// 为了避免绕晕自己，这次不考虑父子画廊，只要 id 不同就视为新画廊，只要是新画廊就进行上传
     #[tracing::instrument(skip(self))]
     pub async fn try_upload(&self, gallery: &EhGalleryUrl, check: bool) -> Result<()> {
-        if check && GalleryEntity::check(gallery.id()).await? {
+        if check
+            && GalleryEntity::check(gallery.id()).await?
+            && MessageEntity::get_by_gallery(gallery.id()).await?.is_some()
+        {
             return Ok(());
         }
 
@@ -93,7 +96,7 @@ impl ExloliUploader {
         // FIXME: 此处没有考虑到父画廊没有上传，但是父父画廊上传过的情况
         // 不过一般情况下画廊应该不会那么短时间内更新多次
         let msg = if let Some(parent) = &gallery.parent {
-            if let Some(pmsg) = MessageEntity::get_by_gallery_id(parent.id()).await? {
+            if let Some(pmsg) = MessageEntity::get_by_gallery(parent.id()).await? {
                 self.bot
                     .send_message(self.config.telegram.channel_id.clone(), text)
                     .reply_to_message_id(MessageId(pmsg.id))
@@ -119,8 +122,10 @@ impl ExloliUploader {
             Some(v) => v,
             _ => return Ok(()),
         };
-        let message =
-            MessageEntity::get_by_gallery_id(gallery.id()).await?.ok_or(anyhow!("找不到消息"))?;
+        let message = match MessageEntity::get_by_gallery(gallery.id()).await? {
+            Some(v) => v,
+            _ => return Ok(()),
+        };
 
         // 2 天内创建的画廊，每天都尝试更新
         // 7 天内创建的画廊，每 3 天尝试更新
@@ -305,8 +310,7 @@ impl ExloliUploader {
     pub async fn rescan_gallery(&self, gallery: &GalleryEntity) -> Result<()> {
         let telegraph =
             TelegraphEntity::get(gallery.id).await?.ok_or(anyhow!("找不到 telegraph"))?;
-        let msg =
-            MessageEntity::get_by_gallery_id(gallery.id).await?.ok_or(anyhow!("找不到消息"))?;
+        let msg = MessageEntity::get_by_gallery(gallery.id).await?.ok_or(anyhow!("找不到消息"))?;
         if !self.check_telegraph(&telegraph.url).await? {
             self.republish(gallery, &msg).await?;
             time::sleep(Duration::from_secs(5)).await;
