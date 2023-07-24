@@ -119,7 +119,8 @@ impl ExloliUploader {
             Some(v) => v,
             _ => return Ok(()),
         };
-        let message = MessageEntity::get_by_gallery_id(gallery.id()).await?.ok_or(anyhow!("找不到消息"))?;
+        let message =
+            MessageEntity::get_by_gallery_id(gallery.id()).await?.ok_or(anyhow!("找不到消息"))?;
 
         // 2 天内创建的画廊，每天都尝试更新
         // 7 天内创建的画廊，每 3 天尝试更新
@@ -158,7 +159,7 @@ impl ExloliUploader {
 
     /// 重新发布指定画廊的文章，并更新消息
     pub async fn republish(&self, gallery: &GalleryEntity, msg: &MessageEntity) -> Result<()> {
-        info!("重新发布：{} {}", gallery.url(), msg.id);
+        info!("重新发布：{}", msg.id);
         let article = self.publish_telegraph_article(gallery).await?;
         let text = self.create_message_text(gallery, &article.url).await?;
         self.bot
@@ -289,10 +290,9 @@ impl ExloliUploader {
 
 impl ExloliUploader {
     /// 重新扫描并更新所有历史画廊，
-    // TODO: 该功能需要移除
     pub async fn rescan(&self) -> Result<()> {
         let galleries = GalleryEntity::list_scans().await?;
-        for gallery in galleries.iter() {
+        for gallery in galleries.iter().rev() {
             info!("更新画廊 {}", gallery.url());
             if let Err(err) = self.rescan_gallery(gallery).await {
                 error!("更新失败 {}", err);
@@ -309,6 +309,7 @@ impl ExloliUploader {
             MessageEntity::get_by_gallery_id(gallery.id).await?.ok_or(anyhow!("找不到消息"))?;
         if !self.check_telegraph(&telegraph.url).await? {
             self.republish(gallery, &msg).await?;
+            time::sleep(Duration::from_secs(5)).await;
         }
         time::sleep(Duration::from_secs(1)).await;
         Ok(())
