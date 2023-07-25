@@ -9,7 +9,7 @@ use teloxide::types::{ChatMemberKind, InputFile};
 use tracing::info;
 
 use crate::bot::command::PublicCommand;
-use crate::bot::filter::filter_member;
+use crate::bot::filter::{filter_member, filter_private_chat};
 use crate::bot::handlers::{
     cmd_best_keyboard, cmd_best_text, cmd_challenge_keyboard, gallery_preview_url,
 };
@@ -34,18 +34,34 @@ pub fn public_command_handler(
         .branch(case![PublicCommand::Best(from, to)].endpoint(cmd_best))
         .branch(case![PublicCommand::Challenge].endpoint(cmd_challenge))
         .branch(case![PublicCommand::Upload(gallery)].endpoint(cmd_upload))
-        .branch(
-            case![PublicCommand::Invite]
-                .chain(filter_member(config.telegram.auth_group_id, ChatMemberKind::Member))
-                .chain(filter_member(config.telegram.channel_id, ChatMemberKind::Left))
-                .endpoint(cmd_invite),
-        )
+        .branch(case![PublicCommand::Invite].endpoint(cmd_invite))
 }
 
 async fn cmd_invite(bot: Bot, msg: Message, cfg: Config) -> Result<()> {
-    let user = msg.from().unwrap().id.0 as i64;
+    let user = msg.from().unwrap().id;
 
-    if let Some(link) = InviteLink::get(user).await? {
+    info!("{}: /invite", user);
+
+    if !msg.chat.is_private() {
+        return Ok(());
+    }
+
+    if matches!(
+        bot.get_chat_member(cfg.telegram.auth_group_id, user).await?.kind,
+        ChatMemberKind::Restricted(_) | ChatMemberKind::Banned(_) | ChatMemberKind::Left
+    ) {
+        reply_to!(bot, msg, "您尚未加入讨论组").await?;
+        return Ok(());
+    }
+    if !matches!(
+        bot.get_chat_member(cfg.telegram.channel_id.clone(), user).await?.kind,
+        ChatMemberKind::Left
+    ) {
+        reply_to!(bot, msg, "您已经加入，或者被限制加入群组").await?;
+        return Ok(());
+    }
+
+    if let Some(link) = InviteLink::get(user.0 as i64).await? {
         reply_to!(bot, msg, format!("你的邀请链接是：{}", link.link)).await?;
     } else {
         let link = bot
@@ -53,7 +69,7 @@ async fn cmd_invite(bot: Bot, msg: Message, cfg: Config) -> Result<()> {
             .member_limit(1)
             .expire_date(Utc::now() + Duration::hours(1))
             .await?;
-        InviteLink::create(user, &link.invite_link).await?;
+        InviteLink::create(user.0 as i64, &link.invite_link).await?;
         reply_to!(bot, msg, format!("邀请链接：{}\n有效次数：1\n有效期：1 小时", link.invite_link))
             .await?;
     }

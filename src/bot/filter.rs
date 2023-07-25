@@ -1,6 +1,6 @@
 use teloxide::dispatching::DpHandlerDescription;
 use teloxide::prelude::*;
-use teloxide::types::{ChatMemberKind, Recipient};
+use teloxide::types::{ChatKind, ChatMemberKind, Recipient};
 
 use super::utils::CallbackData;
 use super::Bot;
@@ -68,4 +68,11 @@ where
             false
         }
     })
+}
+
+pub fn filter_private_chat<Output>() -> Handler<'static, DependencyMap, Output, DpHandlerDescription>
+where
+    Output: Send + Sync + 'static,
+{
+    dptree::filter(|message: Message| matches!(message.chat.kind, ChatKind::Private(_)))
 }
