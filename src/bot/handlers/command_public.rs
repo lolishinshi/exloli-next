@@ -1,27 +1,32 @@
 use anyhow::{anyhow, Context, Result};
+use chrono::{Duration, Utc};
 use rand::prelude::*;
 use reqwest::Url;
 use teloxide::dispatching::DpHandlerDescription;
 use teloxide::dptree::case;
 use teloxide::prelude::*;
-use teloxide::types::InputFile;
+use teloxide::types::{ChatMemberKind, InputFile};
 use tracing::info;
 
-use super::utils::gallery_preview_url;
 use crate::bot::command::PublicCommand;
-use crate::bot::handlers::cmd_best_keyboard;
-use crate::bot::handlers::utils::{cmd_best_text, cmd_challenge_keyboard};
+use crate::bot::filter::filter_member;
+use crate::bot::handlers::{
+    cmd_best_keyboard, cmd_best_text, cmd_challenge_keyboard, gallery_preview_url,
+};
 use crate::bot::utils::ChallengeLocker;
 use crate::bot::Bot;
 use crate::config::Config;
-use crate::database::{ChallengeView, GalleryEntity, MessageEntity, PageEntity, PollEntity};
+use crate::database::{
+    ChallengeView, GalleryEntity, InviteLink, MessageEntity, PageEntity, PollEntity,
+};
 use crate::ehentai::{EhGalleryUrl, GalleryInfo};
 use crate::reply_to;
 use crate::tags::EhTagTransDB;
 use crate::uploader::ExloliUploader;
 
-pub fn public_command_handler() -> Handler<'static, DependencyMap, Result<()>, DpHandlerDescription>
-{
+pub fn public_command_handler(
+    config: Config,
+) -> Handler<'static, DependencyMap, Result<()>, DpHandlerDescription> {
     teloxide::filter_command::<PublicCommand, _>()
         .branch(case![PublicCommand::Query(gallery)].endpoint(cmd_query))
         .branch(case![PublicCommand::Ping].endpoint(cmd_ping))
@@ -29,6 +34,30 @@ pub fn public_command_handler() -> Handler<'static, DependencyMap, Result<()>, D
         .branch(case![PublicCommand::Best(from, to)].endpoint(cmd_best))
         .branch(case![PublicCommand::Challenge].endpoint(cmd_challenge))
         .branch(case![PublicCommand::Upload(gallery)].endpoint(cmd_upload))
+        .branch(
+            case![PublicCommand::Invite]
+                .chain(filter_member(config.telegram.auth_group_id, ChatMemberKind::Member))
+                .chain(filter_member(config.telegram.channel_id, ChatMemberKind::Left))
+                .endpoint(cmd_invite),
+        )
+}
+
+async fn cmd_invite(bot: Bot, msg: Message, cfg: Config) -> Result<()> {
+    let user = msg.from().unwrap().id.0 as i64;
+
+    if let Some(link) = InviteLink::get(user).await? {
+        reply_to!(bot, msg, format!("你的邀请链接是：{}", link.link)).await?;
+    } else {
+        let link = bot
+            .create_chat_invite_link(cfg.telegram.channel_id)
+            .member_limit(1)
+            .expire_date(Utc::now() + Duration::hours(1))
+            .await?;
+        InviteLink::create(user, &link.invite_link).await?;
+        reply_to!(bot, msg, format!("邀请链接：{}\n有效次数：1\n有效期：1 小时", link.invite_link))
+            .await?;
+    }
+    Ok(())
 }
 
 async fn cmd_upload(

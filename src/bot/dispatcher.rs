@@ -20,7 +20,7 @@ pub async fn start_dispatcher(
         .branch(
             Update::filter_message()
                 .branch(admin_command_handler())
-                .branch(public_command_handler())
+                .branch(public_command_handler(config.clone()))
                 .branch(filter_channel_msg().endpoint(custom_pool_sender)),
         )
         .branch(

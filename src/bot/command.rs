@@ -35,4 +35,6 @@ pub enum PublicCommand {
     Challenge,
     #[command(description = "pong~")]
     Ping,
+    #[command(description = "查询频道邀请链接")]
+    Invite,
 }

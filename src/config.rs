@@ -56,6 +56,8 @@ pub struct Telegram {
     pub token: String,
     /// 讨论组 ID
     pub group_id: ChatId,
+    /// 入口讨论组 ID
+    pub auth_group_id: ChatId,
 }
 
 impl Config {
