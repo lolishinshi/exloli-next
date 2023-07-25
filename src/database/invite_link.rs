@@ -8,7 +8,7 @@ use crate::config::CHANNEL_ID;
 #[derive(sqlx::FromRow, Debug)]
 pub struct InviteLink {
     pub user_id: i64,
-    pub chat_id: i64,
+    pub chat_id: String,
     pub link: String,
     pub created_at: NaiveDateTime,
 }
