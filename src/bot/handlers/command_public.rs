@@ -173,8 +173,14 @@ async fn cmd_query(bot: Bot, msg: Message, cfg: Config, gallery: EhGalleryUrl) -
     match GalleryEntity::get(gallery.id()).await? {
         Some(gallery) => {
             let poll = PollEntity::get_by_gallery(gallery.id).await?.context("找不到投票")?;
-            let url = gallery_preview_url(cfg.telegram.channel_id, gallery.id).await?;
-            reply_to!(bot, msg, format!("消息：{}\n评分：{:.2}", url, poll.score * 100.)).await?;
+            let preview = gallery_preview_url(cfg.telegram.channel_id, gallery.id).await?;
+            let url = gallery.url().url();
+            reply_to!(
+                bot,
+                msg,
+                format!("消息：{preview}\n地址：{url}\n评分：{:.2}", poll.score * 100.)
+            )
+            .await?;
         }
         None => {
             reply_to!(bot, msg, "未找到").await?;
