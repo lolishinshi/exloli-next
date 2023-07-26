@@ -37,7 +37,11 @@ pub async fn custom_pool_sender(bot: Bot, message: Message) -> Result<()> {
     let votes = PollEntity::get_vote(poll_id).await?;
     let markup = utils::poll_keyboard(poll_id as i32, &votes);
 
-    reply_to!(bot, message, "当前 0 人投票，0.00 分").reply_markup(markup).await?;
+    let score = PollEntity::update_score(poll_id).await? * 100.;
+    let sum = votes.iter().sum::<i32>();
+    reply_to!(bot, message, format!("当前 {sum} 人投票，{score:.2} 分"))
+        .reply_markup(markup)
+        .await?;
 
     Ok(())
 }
