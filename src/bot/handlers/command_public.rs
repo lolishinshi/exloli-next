@@ -107,14 +107,23 @@ async fn cmd_challenge(
     let answer = challenge.choose(&mut thread_rng()).unwrap();
     let id = locker.add_challenge(answer.id, answer.page, answer.artist.clone());
     let keyboard = cmd_challenge_keyboard(id, &challenge, &trans);
-    bot.send_photo(
-        msg.chat.id,
-        InputFile::url(format!("https://telegra.ph{}", answer.url).parse()?),
-    )
-    .caption("上述图片来自下列哪位作者的本子？")
-    .reply_markup(keyboard)
-    .reply_to_message_id(msg.id)
-    .await?;
+    let reply = bot
+        .send_photo(
+            msg.chat.id,
+            InputFile::url(format!("https://telegra.ph{}", answer.url).parse()?),
+        )
+        .caption("上述图片来自下列哪位作者的本子？")
+        .reply_markup(keyboard)
+        .reply_to_message_id(msg.id)
+        .await?;
+    if !msg.chat.is_private() {
+        tokio::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_secs(120)).await;
+            bot.delete_message(msg.chat.id, msg.id).await?;
+            bot.delete_message(msg.chat.id, reply.id).await?;
+            Result::<()>::Ok(())
+        });
+    }
     Ok(())
 }
 
