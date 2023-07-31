@@ -15,7 +15,9 @@ use tracing::{debug, error, info, instrument, Instrument};
 
 use crate::bot::Bot;
 use crate::config::Config;
-use crate::database::{GalleryEntity, ImageEntity, MessageEntity, PageEntity, TelegraphEntity};
+use crate::database::{
+    GalleryEntity, ImageEntity, MessageEntity, PageEntity, PollEntity, TelegraphEntity,
+};
 use crate::ehentai::{EhClient, EhGallery, EhGalleryUrl, GalleryInfo};
 use crate::tags::EhTagTransDB;
 use crate::utils::imagebytes::ImageBytes;
@@ -310,10 +312,16 @@ impl ExloliUploader {
     pub async fn rescan_gallery(&self, gallery: &GalleryEntity) -> Result<()> {
         let telegraph =
             TelegraphEntity::get(gallery.id).await?.ok_or(anyhow!("找不到 telegraph"))?;
-        let msg = MessageEntity::get_by_gallery(gallery.id).await?.ok_or(anyhow!("找不到消息"))?;
-        if !self.check_telegraph(&telegraph.url).await? {
-            self.republish(gallery, &msg).await?;
-            time::sleep(Duration::from_secs(5)).await;
+        if let Some(msg) = MessageEntity::get_by_gallery(gallery.id).await? {
+            if !self.check_telegraph(&telegraph.url).await? {
+                self.republish(gallery, &msg).await?;
+                time::sleep(Duration::from_secs(5)).await;
+            }
+        } else if let Some(score) = PollEntity::get_by_gallery(gallery.id).await? {
+            if score.score > 0.8 {
+                self.try_upload(&gallery.url(), true).await?;
+                time::sleep(Duration::from_secs(10)).await;
+            }
         }
         time::sleep(Duration::from_secs(1)).await;
         Ok(())

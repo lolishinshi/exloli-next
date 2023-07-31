@@ -6,9 +6,11 @@ use teloxide::dispatching::DpHandlerDescription;
 use teloxide::dptree::case;
 use teloxide::prelude::*;
 use teloxide::types::{ChatMemberKind, InputFile};
+use teloxide::utils::command::BotCommands;
+use teloxide::utils::html::escape;
 use tracing::info;
 
-use crate::bot::command::PublicCommand;
+use crate::bot::command::{AdminCommand, PublicCommand};
 use crate::bot::filter::{filter_member, filter_private_chat};
 use crate::bot::handlers::{
     cmd_best_keyboard, cmd_best_text, cmd_challenge_keyboard, gallery_preview_url,
@@ -35,6 +37,16 @@ pub fn public_command_handler(
         .branch(case![PublicCommand::Challenge].endpoint(cmd_challenge))
         .branch(case![PublicCommand::Upload(gallery)].endpoint(cmd_upload))
         .branch(case![PublicCommand::Invite].endpoint(cmd_invite))
+        .branch(case![PublicCommand::Help].endpoint(cmd_help))
+}
+
+async fn cmd_help(bot: Bot, msg: Message) -> Result<()> {
+    let me = bot.get_me().await?;
+    let public_help = PublicCommand::descriptions().username_from_me(&me);
+    let admin_help = AdminCommand::descriptions().username_from_me(&me);
+    let text = format!("管理员指令：\n{}\n\n公共指令：\n{}", admin_help, public_help);
+    reply_to!(bot, msg, escape(&text)).await?;
+    Ok(())
 }
 
 async fn cmd_invite(bot: Bot, msg: Message, cfg: Config) -> Result<()> {

@@ -37,4 +37,6 @@ pub enum PublicCommand {
     Ping,
     #[command(description = "查询频道邀请链接")]
     Invite,
+    #[command(description = "帮助")]
+    Help,
 }

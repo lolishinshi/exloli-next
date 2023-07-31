@@ -9,9 +9,6 @@ use crate::reply_to;
 
 pub async fn custom_pool_sender(bot: Bot, message: Message) -> Result<()> {
     info!("频道消息更新，发送投票");
-    // 辣鸡 tg 安卓客户端在置顶消息过多时似乎在进群时会卡住
-    // 因此取消置顶频道自动转发的消息
-    bot.unpin_chat_message(message.chat.id).message_id(message.id).await?;
 
     let msg_id = message.forward_from_message_id().context("找不到消息")?;
     let gallery = GalleryEntity::get_by_msg(msg_id).await?.context("找不到画廊")?;
@@ -42,6 +39,15 @@ pub async fn custom_pool_sender(bot: Bot, message: Message) -> Result<()> {
     reply_to!(bot, message, format!("当前 {sum} 人投票，{score:.2} 分"))
         .reply_markup(markup)
         .await?;
+
+    tokio::spawn(async move {
+        // 辣鸡 tg 安卓客户端在置顶消息过多时似乎在进群时会卡住
+        // 因此取消置顶频道自动转发的消息
+        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+        bot.unpin_chat_message(message.chat.id).message_id(message.id).await?;
+        Result::<()>::Ok(())
+    })
+    .await??;
 
     Ok(())
 }
