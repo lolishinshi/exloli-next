@@ -26,9 +26,9 @@ async fn main() -> Result<()> {
     let trans = EhTagTransDB::new(&config.exhentai.trans_file);
     let ehentai = EhClient::new(&config.exhentai.cookie).await?;
     let bot = Bot::new(&config.telegram.token)
+        .throttle(Default::default())
         .parse_mode(ParseMode::Html)
-        .cache_me()
-        .throttle(Default::default());
+        .cache_me();
     let uploader =
         ExloliUploader::new(config.clone(), ehentai.clone(), bot.clone(), trans.clone()).await?;
 
