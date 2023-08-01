@@ -32,7 +32,7 @@ pub async fn custom_pool_sender(bot: Bot, message: Message) -> Result<()> {
     PollEntity::create(poll_id, gallery.id).await?;
 
     let votes = PollEntity::get_vote(poll_id).await?;
-    let markup = utils::poll_keyboard(poll_id as i32, &votes);
+    let markup = utils::poll_keyboard(poll_id, &votes);
 
     let score = PollEntity::update_score(poll_id).await? * 100.;
     let sum = votes.iter().sum::<i32>();

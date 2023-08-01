@@ -9,7 +9,7 @@ use teloxide::prelude::*;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CallbackData {
     /// 投票、选项
-    VoteForPoll(i32, i32),
+    VoteForPoll(i64, i32),
     /// 开始、结束、偏移
     NextPage(i32, i32, i32),
     /// 开始、结束、偏移

@@ -59,7 +59,7 @@ pub fn url_of(channel: Recipient, id: i32) -> Url {
     }
 }
 
-pub fn poll_keyboard(poll_id: i32, votes: &[i32; 5]) -> InlineKeyboardMarkup {
+pub fn poll_keyboard(poll_id: i64, votes: &[i32; 5]) -> InlineKeyboardMarkup {
     let sum = votes.iter().sum::<i32>();
     let votes: Box<dyn Iterator<Item = f32>> = if sum == 0 {
         Box::new([0.].iter().cloned().cycle())

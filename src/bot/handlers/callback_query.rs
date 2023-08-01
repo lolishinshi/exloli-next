@@ -61,7 +61,7 @@ async fn callback_vote_for_poll(
     bot: Bot,
     query: CallbackQuery,
     limiter: RateLimiter,
-    (poll, option): (i32, i32),
+    (poll, option): (i64, i32),
 ) -> Result<()> {
     if let Some(d) = limiter.insert(query.from.id) {
         bot.answer_callback_query(query.id)
@@ -73,16 +73,16 @@ async fn callback_vote_for_poll(
 
     info!("用户投票：[{}] {} = {}", query.from.id, poll, option);
 
-    let old_votes = PollEntity::get_vote(poll as i64).await?;
-    VoteEntity::create(query.from.id.0, poll as i64, option).await?;
-    let votes = PollEntity::get_vote(poll as i64).await?;
+    let old_votes = PollEntity::get_vote(poll).await?;
+    VoteEntity::create(query.from.id.0, poll, option).await?;
+    let votes = PollEntity::get_vote(poll).await?;
 
     // 投票没有变化时不要更新，不然会报错 MessageNotModified
     if old_votes == votes {
         return Ok(());
     }
 
-    let score = PollEntity::update_score(poll as i64).await?;
+    let score = PollEntity::update_score(poll).await?;
     let sum = votes.iter().sum::<i32>();
     let keyboard = poll_keyboard(poll, &votes);
     let text = format!("当前 {} 人投票，{:.2} 分", sum, score * 100.);
