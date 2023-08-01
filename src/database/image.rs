@@ -50,14 +50,6 @@ impl ImageEntity {
             .fetch_all(&*DB)
             .await
     }
-
-    // TODO: 该功能需要移除
-    pub async fn get_old_url_by_hash(hash: &str) -> Result<Option<String>> {
-        sqlx::query_scalar("SELECT url FROM _del_image_hash WHERE hash = ?")
-            .bind(hash)
-            .fetch_optional(&*DB)
-            .await
-    }
 }
 
 impl PageEntity {

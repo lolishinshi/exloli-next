@@ -14,6 +14,8 @@ pub struct PollEntity {
     pub gallery_id: i32,
     /// 当前投票的分数，为 0~1 的小数
     pub score: f32,
+    /// 旧系统的投票数据，代表 1~5 的投票数量
+    pub old_vote: Option<String>,
 }
 
 #[derive(sqlx::FromRow, Debug)]
@@ -51,8 +53,15 @@ impl PollEntity {
     pub async fn get_vote(id: i64) -> Result<[i32; 5]> {
         let mut result = [0; 5];
         let rows = sqlx::query(
-            "SELECT option, COUNT(option) FROM poll JOIN vote ON poll.id = vote.poll_id WHERE poll.id = ? GROUP BY option"
+            r#"
+            SELECT option, SUM(count) FROM (
+                SELECT option, COUNT(option) AS count FROM poll JOIN vote ON poll.id = vote.poll_id WHERE poll.id = ? GROUP BY option
+                UNION ALL
+                SELECT key + 1 AS option, value AS count FROM poll, json_each(poll.old_vote) WHERE poll.id = ?
+            ) GROUP BY option
+            "#
         )
+            .bind(id)
             .bind(id)
             .fetch_all(&*DB)
             .await?;

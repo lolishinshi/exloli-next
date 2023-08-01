@@ -78,18 +78,19 @@ async fn callback_vote_for_poll(
     let votes = PollEntity::get_vote(poll).await?;
 
     // 投票没有变化时不要更新，不然会报错 MessageNotModified
-    if old_votes == votes {
-        return Ok(());
+    if old_votes != votes {
+        let score = PollEntity::update_score(poll).await?;
+        info!("更新分数：{} = {}", poll, score);
+        let sum = votes.iter().sum::<i32>();
+        let keyboard = poll_keyboard(poll, &votes);
+        let text = format!("当前 {} 人投票，{:.2} 分", sum, score * 100.);
+
+        if let Some(message) = query.message {
+            bot.edit_message_text(message.chat.id, message.id, text).reply_markup(keyboard).await?;
+        }
     }
 
-    let score = PollEntity::update_score(poll).await?;
-    let sum = votes.iter().sum::<i32>();
-    let keyboard = poll_keyboard(poll, &votes);
-    let text = format!("当前 {} 人投票，{:.2} 分", sum, score * 100.);
-
-    if let Some(message) = query.message {
-        bot.edit_message_text(message.chat.id, message.id, text).reply_markup(keyboard).await?;
-    }
+    bot.answer_callback_query(query.id).text("投票成功").await?;
 
     Ok(())
 }
