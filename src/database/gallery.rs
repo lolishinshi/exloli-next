@@ -133,7 +133,8 @@ impl GalleryEntity {
             FROM gallery
             JOIN poll ON poll.gallery_id = gallery.id
             JOIN message ON message.gallery_id = gallery.id
-            WHERE message.publish_date BETWEEN ? AND ?
+            WHERE gallery.posted BETWEEN ? AND ?
+            GROUP BY poll.id
             ORDER BY poll.score DESC LIMIT ? OFFSET ?"#,
         )
         .bind(start)
