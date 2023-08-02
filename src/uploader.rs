@@ -315,12 +315,12 @@ impl ExloliUploader {
         if let Some(msg) = MessageEntity::get_by_gallery(gallery.id).await? {
             if !self.check_telegraph(&telegraph.url).await? {
                 self.republish(gallery, &msg).await?;
-                time::sleep(Duration::from_secs(120)).await;
+                time::sleep(Duration::from_secs(60)).await;
             }
         } else if let Some(score) = PollEntity::get_by_gallery(gallery.id).await? {
             if score.score > 0.8 {
                 self.try_upload(&gallery.url(), true).await?;
-                time::sleep(Duration::from_secs(120)).await;
+                time::sleep(Duration::from_secs(60)).await;
             }
         }
         time::sleep(Duration::from_secs(1)).await;
