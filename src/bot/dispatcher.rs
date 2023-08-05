@@ -27,7 +27,8 @@ pub async fn start_dispatcher(
             Update::filter_callback_query()
                 .chain(filter_callbackdata())
                 .chain(callback_query_handler()),
-        );
+        )
+        .branch(Update::filter_chat_join_request().endpoint(join_request_handler));
 
     // 限制每 60 秒只能进行 10 次操作
     let rate_limiter = RateLimiter::new(Duration::from_secs(60), 10);

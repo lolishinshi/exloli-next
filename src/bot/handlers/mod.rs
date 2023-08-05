@@ -2,12 +2,14 @@ mod callback_query;
 mod command_admin;
 mod command_public;
 mod custom_poll;
+mod join_request;
 mod utils;
 
 pub use callback_query::*;
 pub use command_admin::*;
 pub use command_public::*;
 pub use custom_poll::*;
+pub use join_request::*;
 pub use utils::*;
 
 #[macro_export]

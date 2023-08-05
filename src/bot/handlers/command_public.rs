@@ -1,26 +1,22 @@
 use anyhow::{anyhow, Context, Result};
-use chrono::{Duration, Utc};
 use rand::prelude::*;
 use reqwest::Url;
 use teloxide::dispatching::DpHandlerDescription;
 use teloxide::dptree::case;
 use teloxide::prelude::*;
-use teloxide::types::{ChatMemberKind, InputFile};
+use teloxide::types::InputFile;
 use teloxide::utils::command::BotCommands;
 use teloxide::utils::html::escape;
 use tracing::info;
 
 use crate::bot::command::{AdminCommand, PublicCommand};
-use crate::bot::filter::{filter_member, filter_private_chat};
 use crate::bot::handlers::{
     cmd_best_keyboard, cmd_best_text, cmd_challenge_keyboard, gallery_preview_url,
 };
 use crate::bot::utils::ChallengeLocker;
 use crate::bot::Bot;
 use crate::config::Config;
-use crate::database::{
-    ChallengeView, GalleryEntity, InviteLink, MessageEntity, PageEntity, PollEntity,
-};
+use crate::database::{ChallengeView, GalleryEntity, MessageEntity, PageEntity, PollEntity};
 use crate::ehentai::{EhGalleryUrl, GalleryInfo};
 use crate::reply_to;
 use crate::tags::EhTagTransDB;
@@ -36,7 +32,6 @@ pub fn public_command_handler(
         .branch(case![PublicCommand::Best(from, to)].endpoint(cmd_best))
         .branch(case![PublicCommand::Challenge].endpoint(cmd_challenge))
         .branch(case![PublicCommand::Upload(gallery)].endpoint(cmd_upload))
-        .branch(case![PublicCommand::Invite].endpoint(cmd_invite))
         .branch(case![PublicCommand::Help].endpoint(cmd_help))
 }
 
@@ -46,45 +41,6 @@ async fn cmd_help(bot: Bot, msg: Message) -> Result<()> {
     let admin_help = AdminCommand::descriptions().username_from_me(&me);
     let text = format!("管理员指令：\n{}\n\n公共指令：\n{}", admin_help, public_help);
     reply_to!(bot, msg, escape(&text)).await?;
-    Ok(())
-}
-
-async fn cmd_invite(bot: Bot, msg: Message, cfg: Config) -> Result<()> {
-    let user = msg.from().unwrap().id;
-
-    info!("{}: /invite", user);
-
-    if !msg.chat.is_private() {
-        return Ok(());
-    }
-
-    if matches!(
-        bot.get_chat_member(cfg.telegram.auth_group_id, user).await?.kind,
-        ChatMemberKind::Restricted(_) | ChatMemberKind::Banned(_) | ChatMemberKind::Left
-    ) {
-        reply_to!(bot, msg, "您尚未加入讨论组").await?;
-        return Ok(());
-    }
-    if !matches!(
-        bot.get_chat_member(cfg.telegram.channel_id.clone(), user).await?.kind,
-        ChatMemberKind::Left
-    ) {
-        reply_to!(bot, msg, "您已经加入，或者被限制加入群组").await?;
-        return Ok(());
-    }
-
-    if let Some(link) = InviteLink::get(user.0 as i64).await? {
-        reply_to!(bot, msg, format!("你的邀请链接是：{}", link.link)).await?;
-    } else {
-        let link = bot
-            .create_chat_invite_link(cfg.telegram.channel_id)
-            .member_limit(1)
-            .expire_date(Utc::now() + Duration::hours(1))
-            .await?;
-        InviteLink::create(user.0 as i64, &link.invite_link).await?;
-        reply_to!(bot, msg, format!("邀请链接：{}\n有效次数：1\n有效期：1 小时", link.invite_link))
-            .await?;
-    }
     Ok(())
 }
 
