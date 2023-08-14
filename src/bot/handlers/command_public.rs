@@ -13,6 +13,7 @@ use crate::bot::command::{AdminCommand, PublicCommand};
 use crate::bot::handlers::{
     cmd_best_keyboard, cmd_best_text, cmd_challenge_keyboard, gallery_preview_url,
 };
+use crate::bot::scheduler::Scheduler;
 use crate::bot::utils::ChallengeLocker;
 use crate::bot::Bot;
 use crate::config::Config;
@@ -69,6 +70,7 @@ async fn cmd_challenge(
     msg: Message,
     trans: EhTagTransDB,
     locker: ChallengeLocker,
+    scheduler: Scheduler,
 ) -> Result<()> {
     info!("{}: /challenge", msg.from().unwrap().id);
     let challenge = ChallengeView::get_random().await?;
@@ -85,27 +87,33 @@ async fn cmd_challenge(
         .reply_to_message_id(msg.id)
         .await?;
     if !msg.chat.is_private() {
-        tokio::spawn(async move {
-            tokio::time::sleep(std::time::Duration::from_secs(120)).await;
-            bot.delete_message(msg.chat.id, msg.id).await?;
-            bot.delete_message(msg.chat.id, reply.id).await?;
-            Result::<()>::Ok(())
-        });
+        scheduler.delete_msg(msg.chat.id, msg.id, 120);
+        scheduler.delete_msg(msg.chat.id, reply.id, 120);
     }
     Ok(())
 }
 
-async fn cmd_best(bot: Bot, msg: Message, (end, start): (u16, u16), cfg: Config) -> Result<()> {
+async fn cmd_best(
+    bot: Bot,
+    msg: Message,
+    (end, start): (u16, u16),
+    cfg: Config,
+    scheduler: Scheduler,
+) -> Result<()> {
     info!("{}: /best {} {}", msg.from().unwrap().id, end, start);
     let text = cmd_best_text(start as i32, end as i32, 0, cfg.telegram.channel_id).await?;
     let keyboard = cmd_best_keyboard(start as i32, end as i32, 0);
-    reply_to!(bot, msg, text).reply_markup(keyboard).disable_web_page_preview(true).await?;
+    let reply =
+        reply_to!(bot, msg, text).reply_markup(keyboard).disable_web_page_preview(true).await?;
+    if !msg.chat.is_private() {
+        scheduler.delete_msg(msg.chat.id, msg.id, 120);
+        scheduler.delete_msg(msg.chat.id, reply.id, 120);
+    }
     Ok(())
 }
 
 async fn cmd_update(bot: Bot, msg: Message, uploader: ExloliUploader, url: String) -> Result<()> {
     info!("{}: /update {}", msg.from().unwrap().id, url);
-    let reply = reply_to!(bot, msg, "更新中……").await?;
     let msg_id = if url.is_empty() {
         msg.reply_to_message()
             .and_then(|msg| msg.forward_from_message_id())
@@ -120,6 +128,8 @@ async fn cmd_update(bot: Bot, msg: Message, uploader: ExloliUploader, url: Strin
     let msg_entity = MessageEntity::get(msg_id).await?.ok_or(anyhow!("Message not found"))?;
     let gl_entity =
         GalleryEntity::get(msg_entity.gallery_id).await?.ok_or(anyhow!("Gallery not found"))?;
+
+    let reply = reply_to!(bot, msg, "更新中……").await?;
 
     tokio::spawn(async move {
         // 如果检测到页面数量和实际页面数量不一致，需要重新发布文章
@@ -139,9 +149,13 @@ async fn cmd_update(bot: Bot, msg: Message, uploader: ExloliUploader, url: Strin
     Ok(())
 }
 
-async fn cmd_ping(bot: Bot, msg: Message) -> Result<()> {
+async fn cmd_ping(bot: Bot, msg: Message, scheduler: Scheduler) -> Result<()> {
     info!("{}: /ping", msg.from().unwrap().id);
-    reply_to!(bot, msg, "pong~").await?;
+    let reply = reply_to!(bot, msg, "pong~").await?;
+    if !msg.chat.is_private() {
+        scheduler.delete_msg(msg.chat.id, msg.id, 120);
+        scheduler.delete_msg(msg.chat.id, reply.id, 120);
+    }
     Ok(())
 }
 

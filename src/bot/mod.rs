@@ -2,6 +2,7 @@ mod command;
 mod dispatcher;
 mod filter;
 mod handlers;
+mod scheduler;
 mod utils;
 
 pub use dispatcher::start_dispatcher;
