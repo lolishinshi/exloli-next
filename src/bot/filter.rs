@@ -11,17 +11,12 @@ where
     Output: Send + Sync + 'static,
 {
     dptree::filter_async(|message: Message, bot: Bot, cfg: Config| async move {
-        cfg.telegram.group_id == message.chat.id
-            && bot
-                .get_chat_member(message.chat.id, message.from().unwrap().id)
-                .await
-                .map(|member| {
-                    matches!(
-                        member.kind,
-                        ChatMemberKind::Administrator(_) | ChatMemberKind::Owner(_)
-                    )
-                })
-                .unwrap_or_default()
+        bot.get_chat_member(cfg.telegram.group_id, message.from().unwrap().id)
+            .await
+            .map(|member| {
+                matches!(member.kind, ChatMemberKind::Administrator(_) | ChatMemberKind::Owner(_))
+            })
+            .unwrap_or_default()
     })
 }
 
