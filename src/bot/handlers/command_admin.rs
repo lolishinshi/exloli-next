@@ -43,8 +43,12 @@ async fn cmd_upload(
     info!("{}: /upload {}", msg.from().unwrap().id, gallery);
     let reply = reply_to!(bot, msg, "上传中……").await?;
     tokio::spawn(async move {
-        uploader.try_upload(&gallery, false).await?;
-        bot.edit_message_text(msg.chat.id, reply.id, "上传完成").await?;
+        match uploader.try_upload(&gallery, false).await {
+            Ok(_) => bot.edit_message_text(msg.chat.id, reply.id, "上传完成").await?,
+            Err(err) => {
+                bot.edit_message_text(msg.chat.id, reply.id, format!("上传失败：{err}")).await?
+            }
+        };
         Result::<()>::Ok(())
     });
     Ok(())
