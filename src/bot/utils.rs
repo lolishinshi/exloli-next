@@ -73,7 +73,7 @@ impl RateLimiter {
 
     /// 插入数据，正常情况下返回 None，如果达到了限制则返回需要等待的时间
     pub fn insert(&self, key: UserId) -> Option<std::time::Duration> {
-        let mut entry = self.0.data.entry(key).or_insert_with(VecDeque::new);
+        let mut entry = self.0.data.entry(key).or_default();
         let entry = entry.value_mut();
         // 插入时，先去掉已经过期的元素
         while let Some(first) = entry.front() {

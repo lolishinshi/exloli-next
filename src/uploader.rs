@@ -11,7 +11,7 @@ use teloxide::prelude::*;
 use teloxide::types::MessageId;
 use teloxide::utils::html::{code_inline, link};
 use tokio::time;
-use tracing::{debug, error, info, instrument, Instrument};
+use tracing::{debug, error, info, Instrument};
 
 use crate::bot::Bot;
 use crate::config::Config;
@@ -296,34 +296,45 @@ impl ExloliUploader {
 }
 
 impl ExloliUploader {
-    /// 重新扫描并更新所有历史画廊，
-    pub async fn rescan(&self) -> Result<()> {
-        let galleries = GalleryEntity::list_scans().await?;
+    /// 重新扫描并上传没有上传过但存在记录的画廊
+    pub async fn reupload(&self, mut galleries: Vec<GalleryEntity>) -> Result<()> {
+        if galleries.is_empty() {
+            galleries = GalleryEntity::list_scans().await?;
+        }
         for gallery in galleries.iter().rev() {
-            info!("更新画廊 {}", gallery.url());
-            if let Err(err) = self.rescan_gallery(gallery).await {
-                error!("更新失败 {}", err);
+            if let Some(score) = PollEntity::get_by_gallery(gallery.id).await? {
+                if score.score > 0.8 {
+                    info!("尝试上传画廊：{}", gallery.url());
+                    if let Err(err) = self.try_upload(&gallery.url(), true).await {
+                        error!("上传失败：{}", err);
+                    }
+                    time::sleep(Duration::from_secs(60)).await;
+                }
             }
         }
         Ok(())
     }
 
-    #[instrument(skip_all, fields(gallery = %gallery.url()))]
-    pub async fn rescan_gallery(&self, gallery: &GalleryEntity) -> Result<()> {
-        let telegraph =
-            TelegraphEntity::get(gallery.id).await?.ok_or(anyhow!("找不到 telegraph"))?;
-        if let Some(msg) = MessageEntity::get_by_gallery(gallery.id).await? {
-            if !self.check_telegraph(&telegraph.url).await? {
-                self.republish(gallery, &msg).await?;
-                time::sleep(Duration::from_secs(60)).await;
-            }
-        } else if let Some(score) = PollEntity::get_by_gallery(gallery.id).await? {
-            if score.score > 0.8 {
-                self.try_upload(&gallery.url(), true).await?;
-                time::sleep(Duration::from_secs(60)).await;
-            }
+    /// 重新检测已上传过的画廊预览是否有效，并重新上传
+    pub async fn recheck(&self, mut galleries: Vec<GalleryEntity>) -> Result<()> {
+        if galleries.is_empty() {
+            galleries = GalleryEntity::list_scans().await?;
         }
-        time::sleep(Duration::from_secs(1)).await;
+        for gallery in galleries.iter().rev() {
+            let telegraph =
+                TelegraphEntity::get(gallery.id).await?.ok_or(anyhow!("找不到 telegraph"))?;
+            if let Some(msg) = MessageEntity::get_by_gallery(gallery.id).await? {
+                info!("检测画廊：{}", gallery.url());
+                if !self.check_telegraph(&telegraph.url).await? {
+                    info!("重新上传预览：{}", gallery.url());
+                    if let Err(err) = self.republish(gallery, &msg).await {
+                        error!("上传失败：{}", err);
+                    }
+                    time::sleep(Duration::from_secs(60)).await;
+                }
+            }
+            time::sleep(Duration::from_secs(1)).await;
+        }
         Ok(())
     }
 }

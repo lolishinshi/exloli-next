@@ -17,14 +17,14 @@ use crate::bot::scheduler::Scheduler;
 use crate::bot::utils::ChallengeLocker;
 use crate::bot::Bot;
 use crate::config::Config;
-use crate::database::{ChallengeView, GalleryEntity, MessageEntity, PageEntity, PollEntity};
+use crate::database::{ChallengeView, GalleryEntity, MessageEntity, PollEntity};
 use crate::ehentai::{EhGalleryUrl, GalleryInfo};
 use crate::reply_to;
 use crate::tags::EhTagTransDB;
 use crate::uploader::ExloliUploader;
 
 pub fn public_command_handler(
-    config: Config,
+    _config: Config,
 ) -> Handler<'static, DependencyMap, Result<()>, DpHandlerDescription> {
     teloxide::filter_command::<PublicCommand, _>()
         .branch(case![PublicCommand::Query(gallery)].endpoint(cmd_query))
@@ -132,15 +132,9 @@ async fn cmd_update(bot: Bot, msg: Message, uploader: ExloliUploader, url: Strin
     let reply = reply_to!(bot, msg, "更新中……").await?;
 
     tokio::spawn(async move {
-        // 如果检测到页面数量和实际页面数量不一致，需要重新发布文章
-        let force_republish = gl_entity.pages != PageEntity::count(gl_entity.id).await?;
-        // 调用 update_history_gallery_inner 来检测是否是缺页的画廊（包括旧画廊和异常画廊）
-        // 顺便还会把失效画廊重新上传
-        uploader.rescan_gallery(&gl_entity).await?;
-        if force_republish {
-            uploader.republish(&gl_entity, &msg_entity).await?;
-        }
-        // 最后看一下有没有 tag 或者标题需要更新
+        // 调用 rescan_gallery 把失效画廊重新上传
+        uploader.recheck(vec![gl_entity.clone()]).await?;
+        // 看一下有没有 tag 或者标题需要更新
         uploader.try_update(&gl_entity.url(), false).await?;
         bot.edit_message_text(msg.chat.id, reply.id, "更新完成").await?;
         Result::<()>::Ok(())

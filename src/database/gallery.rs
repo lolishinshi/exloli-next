@@ -15,10 +15,10 @@ use crate::config::CHANNEL_ID;
 use crate::ehentai::EhGallery;
 
 // 此处使用 IndexMap，因为我们需要保证相同的 tag 每次序列化的结果都是一样的
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct TagsEntity(pub IndexMap<String, Vec<String>>);
 
-#[derive(Debug, FromRow)]
+#[derive(Debug, Clone, FromRow)]
 pub struct GalleryEntity {
     /// 画廊 ID
     pub id: i32,

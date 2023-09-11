@@ -48,7 +48,7 @@ pub async fn start_dispatcher(
             scheduler
         ])
         // NOTE: 默认情况下，同一个分组内的消息是串行处理，不同分组内的消息是并行处理
-        // 此处使用空的分组函数，这样所有消息都会串行处理
+        // 此处使用空的分组函数，这样所有消息都会并行处理
         .distribution_function(|_| None::<()>)
         .build()
         .dispatch()
