@@ -19,9 +19,9 @@ use crate::bot::Bot;
 use crate::config::Config;
 use crate::database::{ChallengeView, GalleryEntity, MessageEntity, PollEntity};
 use crate::ehentai::{EhGalleryUrl, GalleryInfo};
-use crate::reply_to;
 use crate::tags::EhTagTransDB;
 use crate::uploader::ExloliUploader;
+use crate::{reply_to, try_with_reply};
 
 pub fn public_command_handler(
     _config: Config,
@@ -55,12 +55,7 @@ async fn cmd_upload(
     if GalleryEntity::get(gallery.id()).await?.is_none() {
         reply_to!(bot, msg, "非管理员只能上传存在上传记录的画廊").await?;
     } else {
-        let reply = reply_to!(bot, msg, "上传中……").await?;
-        tokio::spawn(async move {
-            uploader.try_upload(&gallery, true).await?;
-            bot.edit_message_text(msg.chat.id, reply.id, "上传完成").await?;
-            Result::<()>::Ok(())
-        });
+        try_with_reply!(bot, msg, uploader.try_upload(&gallery, true).await);
     }
     Ok(())
 }
@@ -131,14 +126,11 @@ async fn cmd_update(bot: Bot, msg: Message, uploader: ExloliUploader, url: Strin
 
     let reply = reply_to!(bot, msg, "更新中……").await?;
 
-    tokio::spawn(async move {
-        // 调用 rescan_gallery 把失效画廊重新上传
-        uploader.recheck(vec![gl_entity.clone()]).await?;
-        // 看一下有没有 tag 或者标题需要更新
-        uploader.try_update(&gl_entity.url(), false).await?;
-        bot.edit_message_text(msg.chat.id, reply.id, "更新完成").await?;
-        Result::<()>::Ok(())
-    });
+    // 调用 rescan_gallery 把失效画廊重新上传
+    uploader.recheck(vec![gl_entity.clone()]).await?;
+    // 看一下有没有 tag 或者标题需要更新
+    uploader.try_update(&gl_entity.url(), false).await?;
+    bot.edit_message_text(msg.chat.id, reply.id, "更新完成").await?;
 
     Ok(())
 }

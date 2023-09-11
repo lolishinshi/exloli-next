@@ -10,8 +10,8 @@ use crate::bot::filter::filter_admin_msg;
 use crate::bot::Bot;
 use crate::database::{GalleryEntity, MessageEntity};
 use crate::ehentai::EhGalleryUrl;
-use crate::reply_to;
 use crate::uploader::ExloliUploader;
+use crate::{reply_to, try_with_reply};
 
 pub fn admin_command_handler() -> Handler<'static, DependencyMap, Result<()>, DpHandlerDescription>
 {
@@ -26,30 +26,14 @@ pub fn admin_command_handler() -> Handler<'static, DependencyMap, Result<()>, Dp
 
 // TODO: 该功能需要移除
 async fn cmd_reupload(bot: Bot, msg: Message, uploader: ExloliUploader) -> Result<()> {
-    let reply = reply_to!(bot, msg, "扫描中……").await?;
-    tokio::spawn(async move {
-        match uploader.reupload(vec![]).await {
-            Ok(()) => bot.edit_message_text(msg.chat.id, reply.id, "扫描并更新完成").await?,
-            Err(err) => {
-                bot.edit_message_text(msg.chat.id, reply.id, format!("扫描失败：{}", err)).await?
-            }
-        };
-        Result::<()>::Ok(())
-    });
+    info!("{}: /reupload", msg.from().unwrap().id);
+    try_with_reply!(bot, msg, uploader.reupload(vec![]).await);
     Ok(())
 }
 
 async fn cmd_recheck(bot: Bot, msg: Message, uploader: ExloliUploader) -> Result<()> {
-    let reply = reply_to!(bot, msg, "扫描中……").await?;
-    tokio::spawn(async move {
-        match uploader.recheck(vec![]).await {
-            Ok(()) => bot.edit_message_text(msg.chat.id, reply.id, "扫描并更新完成").await?,
-            Err(err) => {
-                bot.edit_message_text(msg.chat.id, reply.id, format!("扫描失败：{}", err)).await?
-            }
-        };
-        Result::<()>::Ok(())
-    });
+    info!("{}: /recheck", msg.from().unwrap().id);
+    try_with_reply!(bot, msg, uploader.recheck(vec![]).await);
     Ok(())
 }
 
@@ -60,16 +44,7 @@ async fn cmd_upload(
     gallery: EhGalleryUrl,
 ) -> Result<()> {
     info!("{}: /upload {}", msg.from().unwrap().id, gallery);
-    let reply = reply_to!(bot, msg, "上传中……").await?;
-    tokio::spawn(async move {
-        match uploader.try_upload(&gallery, false).await {
-            Ok(_) => bot.edit_message_text(msg.chat.id, reply.id, "上传完成").await?,
-            Err(err) => {
-                bot.edit_message_text(msg.chat.id, reply.id, format!("上传失败：{err}")).await?
-            }
-        };
-        Result::<()>::Ok(())
-    });
+    try_with_reply!(bot, msg, uploader.try_upload(&gallery, false).await);
     Ok(())
 }
 
