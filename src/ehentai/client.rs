@@ -10,8 +10,6 @@ use reqwest::header::*;
 use reqwest::Client;
 use scraper::{Html, Selector};
 use serde::Serialize;
-use tokio::runtime::Handle;
-use tokio::task;
 use tracing::{debug, error, info, Instrument};
 
 use super::error::*;
@@ -125,49 +123,49 @@ impl EhClient {
 
     #[tracing::instrument(skip(self))]
     pub async fn get_gallery(&self, url: &EhGalleryUrl) -> Result<EhGallery> {
-        let resp = send!(self.0.get(url.url()))?;
-        let mut html = Html::parse_document(&resp.text().await?);
+        // NOTE: 由于 Html 是 !Send 的，为了避免它被包含在 Future 上下文中，这里将它放在一个单独的作用域内
+        // 参见：https://rust-lang.github.io/async-book/07_workarounds/03_send_approximation.html
+        let (title, title_jp, parent, tags, favorite, mut pages, posted, mut next_page) = {
+            let resp = send!(self.0.get(url.url()))?;
+            let html = Html::parse_document(&resp.text().await?);
 
-        // 英文标题、日文标题、父画廊
-        let title = html.select_text("h1#gn").unwrap();
-        let title_jp = html.select_text("h1#gj");
-        let parent = html.select_attr("td.gdt2 a", "href").and_then(|s| s.parse().ok());
+            // 英文标题、日文标题、父画廊
+            let title = html.select_text("h1#gn").unwrap();
+            let title_jp = html.select_text("h1#gj");
+            let parent = html.select_attr("td.gdt2 a", "href").and_then(|s| s.parse().ok());
 
-        // 画廊 tag
-        let mut tags = IndexMap::new();
-        let selector = selector!("div#taglist tr");
-        for ele in html.select(&selector) {
-            let namespace = ele.select_text("td.tc").unwrap().trim_matches(':').to_string();
-            let tag = ele.select_texts("td div a");
-            tags.insert(namespace, tag);
-        }
+            // 画廊 tag
+            let mut tags = IndexMap::new();
+            let selector = selector!("div#taglist tr");
+            for ele in html.select(&selector) {
+                let namespace = ele.select_text("td.tc").unwrap().trim_matches(':').to_string();
+                let tag = ele.select_texts("td div a");
+                tags.insert(namespace, tag);
+            }
 
-        // 收藏数量
-        let favorite = html.select_text("#favcount").unwrap();
-        let favorite = favorite.split(' ').next().unwrap().parse().unwrap();
+            // 收藏数量
+            let favorite = html.select_text("#favcount").unwrap();
+            let favorite = favorite.split(' ').next().unwrap().parse().unwrap();
 
-        // 发布时间
-        let posted = &html.select_texts("td.gdt2")[0];
-        let posted = NaiveDateTime::parse_from_str(posted, "%Y-%m-%d %H:%M")?;
+            // 发布时间
+            let posted = &html.select_texts("td.gdt2")[0];
+            let posted = NaiveDateTime::parse_from_str(posted, "%Y-%m-%d %H:%M")?;
 
-        // 每一页的 URL
-        let mut pages = html.select_attrs("div.gdtl a", "href");
-        while let Some(next_page) = html.select_attr("table.ptt td:last-child a", "href") {
-            debug!(next_page);
-            // FIXME: 此处的迷惑行为，不知道有没有更好的解决办法
-            // 1. 由于 Html 结构体是 !Send 的，我们要避免在它被包含在 Future 的上下文中，否则这个 Future
-            //    也会是 !Send，然后就没办法 tokio::spawn 了（不过可以 tokio::task::spawn_local
-            // 2. 使用 block_on 可以让这个 Future 立即被消耗掉，但是这样会阻塞当前线程，所以需要在外面
-            //    再套上 block_in_place
-            let client = self.0.clone();
-            let text = task::block_in_place(move || {
-                Handle::current().block_on(async move {
-                    let resp = send!(client.get(next_page))?;
-                    Result::Ok(resp.text().await?)
-                })
-            })?;
-            html = Html::parse_document(&text);
+            // 每一页的 URL
+            let pages = html.select_attrs("div.gdtl a", "href");
+
+            // 下一页的 URL
+            let next_page = html.select_attr("table.ptt td:last-child a", "href");
+
+            (title, title_jp, parent, tags, favorite, pages, posted, next_page)
+        };
+
+        while let Some(next_page_url) = &next_page {
+            debug!(next_page_url);
+            let resp = send!(self.0.get(next_page_url))?;
+            let html = Html::parse_document(&resp.text().await?);
             pages.extend(html.select_attrs("div.gdtl a", "href"));
+            next_page = html.select_attr("table.ptt td:last-child a", "href");
         }
 
         let pages = pages.into_iter().map(|s| s.parse()).collect::<Result<Vec<_>>>()?;
