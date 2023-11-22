@@ -2,53 +2,36 @@
 
 因为受不了当初乱写代码的自己而重写的新一代的 exloli 客户端
 
-## 配置文件
+## 安装
 
-```toml
-# 日志等级
-log_level = "info,sqlx=warn,teloxide=error,exloli_next=debug"
-# 下载线程的数量
-# NOTE: 上传线程数量固定为 1
-threads_num = 1
-# 每次扫描的间隔
-interval = "1h"
-# 数据库文件位置
-database_url = "db.sqlite"
+### 通过 cargo
 
-[exhentai]
-# E 站 cookie
-cookie = "ipb_member_id=xxxxx; ..."
-# 搜索参数
-search_params = [
-    ["f_cats", "577"],
-    ["f_search", "female:lolicon language:Chinese"]
-]
-# 搜索多少本本子（注意不是页数）
-# 将此处设置为 0，就不会主动上传任何本子
-search_count = 10
-# 翻译文件的位置，每隔半小时自动更新
-# 前往 https://github.com/EhTagTranslation/Database 下载
-trans_file = "db.text.json"
-
-[telegraph]
-# telegrah 账号 token
-access_token = "xxxx"
-# 发布文章时使用的作者名字
-author_name = "exloli"
-# 发布文章时使用的作者名称
-author_url = "https://t.me/exlolicon"
-
-[telegram]
-# 频道 ID，如果是私有频道，这里可以填数字 ID
-channel_id = "@xxx"
-# 群组 ID，因为我懒，所以这里只能填数字 ID，如果填写的 ID 不存在，则不会发送投票
-# 可以用 @myidbot 来获取你的频道和群组 ID
-group_id = -1001423106182
-# bot ID
-bot_id ="test_bot"
-# bot token
-token = "xxxx:xxxxxxxx"
+```bash
+# 安装 rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+# 激活 rust 环境
+source $HOME/.cargo/env
+# 安装 exloli-next
+cargo install --git https://github.com/lolishinshi/exloli-next
+# 测试是否安装成功
+exloli-next --help
 ```
+
+### 通过 docker
+
+```bash
+# 注：docker-compose 自行安装 
+mkdir exloli-next && cd exloli-next
+wget https://raw.githubusercontent.com/lolishinshi/exloli/master/docker-compose.yml
+wget https://github.com/EhTagTranslation/Database/releases/download/v6.7880.1/db.text.json
+touch db.sqlite db.sqlite-shm db.sqlite-wal
+mv config.toml.example config.toml
+docker-compose up -d
+```
+
+## 配置
+
+请参考 config.toml.example
 
 ## 从 exloli 迁移
 

@@ -5,4 +5,7 @@ services:
     container_name: exloli
     volumes:
       - ./:/app
+    logging:
+      options:
+        max-size: "128m"
     restart: unless-stopped
