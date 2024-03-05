@@ -1,7 +1,7 @@
 use std::backtrace::Backtrace;
 use std::time::Duration;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use chrono::{Datelike, Utc};
 use futures::StreamExt;
 use regex::Regex;
@@ -10,6 +10,7 @@ use telegraph_rs::{html_to_node, Telegraph};
 use teloxide::prelude::*;
 use teloxide::types::MessageId;
 use teloxide::utils::html::{code_inline, link};
+use tokio::task::JoinHandle;
 use tokio::time;
 use tracing::{debug, error, info, Instrument};
 
@@ -239,9 +240,7 @@ impl ExloliUploader {
             .in_current_span(),
         );
 
-        let (first, second) = tokio::try_join!(getter, uploader)?;
-        first?;
-        second?;
+        tokio::try_join!(flatten(getter), flatten(uploader))?;
 
         Ok(())
     }
@@ -292,6 +291,14 @@ impl ExloliUploader {
         text.push_str(&format!("{}: {}", code_inline("原始地址"), gallery.url().url()));
 
         Ok(text)
+    }
+}
+
+async fn flatten<T>(handle: JoinHandle<Result<T>>) -> Result<T> {
+    match handle.await {
+        Ok(Ok(result)) => Ok(result),
+        Ok(Err(err)) => Err(err),
+        Err(err) => bail!(err),
     }
 }
 

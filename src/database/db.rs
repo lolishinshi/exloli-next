@@ -3,7 +3,6 @@ use std::env;
 use futures::executor::block_on;
 use once_cell::sync::Lazy;
 use sqlx::sqlite::*;
-use sqlx::SqlitePool;
 use tracing::info;
 
 pub static DB: Lazy<SqlitePool> = Lazy::new(|| {
