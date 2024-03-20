@@ -5,8 +5,14 @@ use std::time::Instant;
 use anyhow::Result;
 use dashmap::DashMap;
 use image::EncodableLayout;
+use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 use teloxide::prelude::*;
+use tokio::sync::mpsc::{channel, Receiver};
+use tokio::sync::Mutex;
+use tracing::{info, warn};
+
+use crate::database::ChallengeView;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CallbackData {
@@ -112,6 +118,49 @@ impl ChallengeLocker {
     /// 尝试获得一个答题机会
     pub fn get_challenge(&self, id: i64) -> Option<(i32, i32, String)> {
         Some(self.0.remove(&id)?.1)
+    }
+}
+
+/// 时刻缓存一些有效的挑战，提高响应速度
+#[derive(Debug, Clone)]
+pub struct ChallengeProvider(Arc<Mutex<Receiver<Vec<ChallengeView>>>>);
+
+impl ChallengeProvider {
+    pub fn new() -> Self {
+        let (tx, rx) = channel(3);
+        tokio::spawn(async move {
+            loop {
+                match Self::_get_challenge().await {
+                    Ok(challenge) => {
+                        tx.send(challenge).await.unwrap();
+                    }
+                    Err(e) => {
+                        warn!("获取挑战失败: {}", e);
+                    }
+                }
+            }
+        });
+        Self(Arc::new(Mutex::new(rx)))
+    }
+
+    async fn _get_challenge() -> Result<Vec<ChallengeView>> {
+        loop {
+            let mut challenge = ChallengeView::get_random().await?;
+            challenge.shuffle(&mut thread_rng());
+            let answer = &challenge[0];
+            let url = format!("https://telegra.ph{}", answer.url);
+            let resp = reqwest::get(&url).await?;
+            let data = resp.bytes().await?;
+            if has_qrcode(&data)? {
+                info!("跳过包含二维码的图片");
+                continue;
+            }
+            return Ok(challenge);
+        }
+    }
+
+    pub async fn get_challenge(&self) -> Option<Vec<ChallengeView>> {
+        self.0.lock().await.recv().await
     }
 }
 

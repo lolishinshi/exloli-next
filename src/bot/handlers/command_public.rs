@@ -1,5 +1,4 @@
 use anyhow::{anyhow, Context, Result};
-use rand::prelude::*;
 use reqwest::Url;
 use teloxide::dispatching::DpHandlerDescription;
 use teloxide::dptree::case;
@@ -7,17 +6,17 @@ use teloxide::prelude::*;
 use teloxide::types::InputFile;
 use teloxide::utils::command::BotCommands;
 use teloxide::utils::html::escape;
-use tracing::{info, warn};
+use tracing::info;
 
 use crate::bot::command::{AdminCommand, PublicCommand};
 use crate::bot::handlers::{
     cmd_best_keyboard, cmd_best_text, cmd_challenge_keyboard, gallery_preview_url,
 };
 use crate::bot::scheduler::Scheduler;
-use crate::bot::utils::{has_qrcode, ChallengeLocker};
+use crate::bot::utils::{ChallengeLocker, ChallengeProvider};
 use crate::bot::Bot;
 use crate::config::Config;
-use crate::database::{ChallengeView, GalleryEntity, MessageEntity, PollEntity};
+use crate::database::{GalleryEntity, MessageEntity, PollEntity};
 use crate::ehentai::{EhGalleryUrl, GalleryInfo};
 use crate::tags::EhTagTransDB;
 use crate::uploader::ExloliUploader;
@@ -66,35 +65,24 @@ async fn cmd_challenge(
     trans: EhTagTransDB,
     locker: ChallengeLocker,
     scheduler: Scheduler,
+    challange_provider: ChallengeProvider,
 ) -> Result<()> {
     info!("{}: /challenge", msg.from().unwrap().id);
-    for _ in 0..10 {
-        let challenge = ChallengeView::get_random().await?;
-        let answer = challenge.choose(&mut thread_rng()).unwrap();
-        let url = format!("https://telegra.ph{}", answer.url);
-        let resp = reqwest::get(&url).await?;
-        let data = resp.bytes().await?;
-        if has_qrcode(&data)? {
-            warn!("跳过包含二维码的图片");
-            continue;
-        }
-        let challenge = ChallengeView::get_random().await?;
-        let answer = challenge.choose(&mut thread_rng()).unwrap();
-        let id = locker.add_challenge(answer.id, answer.page, answer.artist.clone());
-        let keyboard = cmd_challenge_keyboard(id, &challenge, &trans);
-        let reply = bot
-            .send_photo(msg.chat.id, InputFile::url(url.parse()?))
-            .caption("上述图片来自下列哪位作者的本子？")
-            .reply_markup(keyboard)
-            .reply_to_message_id(msg.id)
-            .await?;
-        if !msg.chat.is_private() {
-            scheduler.delete_msg(msg.chat.id, msg.id, 120);
-            scheduler.delete_msg(msg.chat.id, reply.id, 120);
-        }
-        return Ok(());
+    let challenge = challange_provider.get_challenge().await.unwrap();
+    let answer = &challenge[0];
+    let url = format!("https://telegra.ph{}", answer.url);
+    let id = locker.add_challenge(answer.id, answer.page, answer.artist.clone());
+    let keyboard = cmd_challenge_keyboard(id, &challenge, &trans);
+    let reply = bot
+        .send_photo(msg.chat.id, InputFile::url(url.parse()?))
+        .caption("上述图片来自下列哪位作者的本子？")
+        .reply_markup(keyboard)
+        .reply_to_message_id(msg.id)
+        .await?;
+    if !msg.chat.is_private() {
+        scheduler.delete_msg(msg.chat.id, msg.id, 120);
+        scheduler.delete_msg(msg.chat.id, reply.id, 120);
     }
-    warn!("没有找到合适的图片");
     Ok(())
 }
 

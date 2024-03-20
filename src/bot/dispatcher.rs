@@ -4,7 +4,7 @@ use teloxide::prelude::*;
 
 use super::filter::{filter_callbackdata, filter_channel_msg};
 use super::handlers::*;
-use super::utils::{ChallengeLocker, RateLimiter};
+use super::utils::{ChallengeLocker, ChallengeProvider, RateLimiter};
 use super::Bot;
 use crate::bot::scheduler::Scheduler;
 use crate::config::Config;
@@ -36,6 +36,8 @@ pub async fn start_dispatcher(
 
     let challenge_locker = ChallengeLocker::new();
 
+    let challenge_provider = ChallengeProvider::new();
+
     let scheduler = Scheduler::new(bot.clone());
 
     Dispatcher::builder(bot, handler)
@@ -45,7 +47,8 @@ pub async fn start_dispatcher(
             rate_limiter,
             trans,
             challenge_locker,
-            scheduler
+            scheduler,
+            challenge_provider
         ])
         // NOTE: 默认情况下，同一个分组内的消息是串行处理，不同分组内的消息是并行处理
         // 此处使用空的分组函数，这样所有消息都会并行处理
