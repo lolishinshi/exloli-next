@@ -2,7 +2,9 @@ use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::Instant;
 
+use anyhow::Result;
 use dashmap::DashMap;
+use image::EncodableLayout;
 use serde::{Deserialize, Serialize};
 use teloxide::prelude::*;
 
@@ -111,4 +113,11 @@ impl ChallengeLocker {
     pub fn get_challenge(&self, id: i64) -> Option<(i32, i32, String)> {
         Some(self.0.remove(&id)?.1)
     }
+}
+
+pub fn has_qrcode(data: &[u8]) -> Result<bool> {
+    let image = image::load_from_memory(data)?.into_luma8();
+    let mut decoder = quircs::Quirc::default();
+    let codes = decoder.identify(image.width() as usize, image.height() as usize, image.as_bytes());
+    Ok(codes.count() > 0)
 }
