@@ -36,7 +36,12 @@ impl ChallengeView {
                     SELECT * FROM challenge_view
                     WHERE score > 0.8 AND id NOT IN (
                         -- 此处过滤掉出现在大于 5 个画廊中的图片，因为大概率是广告
+                        -- 还有第一页和最后一页
                         SELECT image_id FROM page GROUP BY image_id HAVING COUNT(gallery_id) > 5
+                        UNION
+                        SELECT image_id FROM page GROUP BY gallery_id HAVING page = MAX(page)
+                        UNION
+                        SELECT image_id FROM page GROUP BY gallery_id HAVING page = 1
                     ) ORDER BY random()
                 ) GROUP BY artist
             ) ORDER BY random() LIMIT 4"#,
