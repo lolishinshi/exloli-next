@@ -228,6 +228,10 @@ impl ExloliUploader {
             async move {
                 // TODO: 此处可以考虑一次上传多个图片，减少请求次数，避免触发 telegraph 的 rate limit
                 while let Some((page, (fileindex, url))) = rx.recv().await {
+                    // 跳过 gif，太大了，基本传不上去
+                    if url.ends_with(".gif") {
+                        continue;
+                    }
                     let bytes = client.get(url).send().await?.bytes().await?.to_vec();
                     debug!("已下载: {}", page.page());
                     let resp = Telegraph::upload_with(&[ImageBytes(bytes)], &client).await?;
