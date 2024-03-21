@@ -156,7 +156,11 @@ async fn cmd_query(bot: Bot, msg: Message, cfg: Config, gallery: EhGalleryUrl) -
             reply_to!(
                 bot,
                 msg,
-                format!("消息：{preview}\n地址：{url}\n评分：{:.2}", poll.score * 100.)
+                format!(
+                    "消息：{preview}\n地址：{url}\n评分：{:.2}（{:.2}）",
+                    poll.score * 100.,
+                    poll.rank().await? * 100.
+                )
             )
             .await?;
         }

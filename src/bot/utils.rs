@@ -145,8 +145,7 @@ impl ChallengeProvider {
 
     async fn _get_challenge() -> Result<Vec<ChallengeView>> {
         loop {
-            let mut challenge = ChallengeView::get_random().await?;
-            challenge.shuffle(&mut thread_rng());
+            let challenge = ChallengeView::get_random().await?;
             let answer = &challenge[0];
             let url = format!("https://telegra.ph{}", answer.url);
             let resp = reqwest::get(&url).await?;

@@ -50,9 +50,10 @@ async fn callback_challenge(
         let url = gallery_entity.url().url();
         let preview = link(&preview, &gallery_entity.title_jp.unwrap_or(gallery_entity.title));
         let score = poll.score * 100.;
+        let rank = poll.rank().await? * 100.;
 
         let text = format!(
-            "{mention} {result}，答案是 {artist}（{answer}）\n回答情况：{stat_success}/{stat_total}\n地址：{url}\n预览：{preview}\n评分：{score:.2}",
+            "{mention} {result}，答案是 {artist}（{answer}）\n回答情况：{stat_success}/{stat_total}\n地址：{url}\n预览：{preview}\n评分：{score:.2}（{rank:.2}%）",
         );
 
         bot.edit_message_caption(message.chat.id, message.id).caption(text).await?;
