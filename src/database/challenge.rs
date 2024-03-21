@@ -11,7 +11,7 @@ pub struct ChallengeView {
     pub token: String,
     pub page: i32,
     pub artist: String,
-    pub hash: String,
+    pub image_id: i32,
     pub url: String,
     pub score: f32,
 }
@@ -34,7 +34,7 @@ impl ChallengeView {
                 -- 此处使用 group by 嵌套 random，因为默认情况下 group by 只会显示每组的第一个结果
                 SELECT * FROM (
                     SELECT * FROM challenge_view
-                    WHERE score > 0.8 AND id NOT IN (
+                    WHERE score > 0.8 AND image_id NOT IN (
                         -- 此处过滤掉出现在大于 5 个画廊中的图片，因为大概率是广告
                         -- 还有第一页和最后一页
                         -- 这个查询太耗时了，现在有基于二维码的过滤了，暂时禁用看一下效果
