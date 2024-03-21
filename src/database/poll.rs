@@ -92,7 +92,7 @@ impl PollEntity {
         .bind(self.score)
         .fetch_one(&*DB)
         .await?;
-        Ok((higher * 1.0 / total))
+        Ok(higher as f32 / total as f32)
     }
 }
 
