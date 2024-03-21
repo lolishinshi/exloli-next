@@ -43,7 +43,6 @@ async fn callback_challenge(
 
         let (stat_success, stat_total) =
             ChallengeHistory::answer_stats(query.from.id.0 as i64, message.chat.id.0).await?;
-        let accuracy = stat_success as f64 / stat_total as f64 * 100.;
 
         let mention = user_mention(query.from.id.0 as i64, &query.from.full_name());
         let result = if success { "答对了！" } else { "答错了……" };
@@ -53,7 +52,7 @@ async fn callback_challenge(
         let score = poll.score * 100.;
 
         let text = format!(
-            "{mention} {result}，答案是 {artist}（{answer}）\n当前正确率：{accuracy:.3}% ({stat_success}/{stat_total})\n地址：{url}\n预览：{preview}\n评分：{score:.2}",
+            "{mention} {result}，答案是 {artist}（{answer}）\n回答情况：{stat_success}/{stat_total}\n地址：{url}\n预览：{preview}\n评分：{score:.2}",
         );
 
         bot.edit_message_caption(message.chat.id, message.id).caption(text).await?;

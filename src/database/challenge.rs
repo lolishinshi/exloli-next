@@ -5,7 +5,7 @@ use sqlx::Result;
 
 use super::db::DB;
 
-#[derive(FromRow)]
+#[derive(FromRow, Clone)]
 pub struct ChallengeView {
     pub id: i32,
     pub token: String,

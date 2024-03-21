@@ -1,4 +1,6 @@
 use anyhow::{anyhow, Context, Result};
+use rand::prelude::*;
+use rand::thread_rng;
 use reqwest::Url;
 use teloxide::dispatching::DpHandlerDescription;
 use teloxide::dptree::case;
@@ -68,8 +70,9 @@ async fn cmd_challenge(
     challange_provider: ChallengeProvider,
 ) -> Result<()> {
     info!("{}: /challenge", msg.from().unwrap().id);
-    let challenge = challange_provider.get_challenge().await.unwrap();
-    let answer = &challenge[0];
+    let mut challenge = challange_provider.get_challenge().await.unwrap();
+    let answer = challenge[0].clone();
+    challenge.shuffle(&mut thread_rng());
     let url = format!("https://telegra.ph{}", answer.url);
     let id = locker.add_challenge(answer.id, answer.page, answer.artist.clone());
     let keyboard = cmd_challenge_keyboard(id, &challenge, &trans);
