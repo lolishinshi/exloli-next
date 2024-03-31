@@ -14,6 +14,7 @@ use crate::database::GalleryEntity;
 pub struct EhGalleryUrl {
     id: i32,
     token: String,
+    cover: usize,
 }
 
 impl EhGalleryUrl {
@@ -31,6 +32,11 @@ impl EhGalleryUrl {
     pub fn token(&self) -> &str {
         &self.token
     }
+
+    /// 封面是第几张
+    pub fn cover(&self) -> usize {
+        self.cover
+    }
 }
 
 impl FromStr for EhGalleryUrl {
@@ -38,14 +44,17 @@ impl FromStr for EhGalleryUrl {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         static RE: Lazy<Regex> = Lazy::new(|| {
-            Regex::new(r"https://e.hentai.org/g/(?P<id>\d+)/(?P<token>[^/]+)").unwrap()
+            Regex::new(r"https://e.hentai.org/g/(?P<id>\d+)/(?P<token>[^/]+)/?(?P<cover>#\d+)?")
+                .unwrap()
         });
         let captures = RE.captures(s).ok_or_else(|| EhError::InvalidURL(s.to_owned()))?;
         // NOTE: 由于是正则匹配出来的结果，此处 unwrap 不会造成 panic
         let token = captures.name("token").unwrap().as_str().to_owned();
         let id = captures.name("id").and_then(|s| s.as_str().parse().ok()).unwrap();
+        let cover =
+            captures.name("cover").and_then(|s| s.as_str()[1..].parse().ok()).unwrap_or_default();
 
-        Ok(Self { id, token })
+        Ok(Self { id, token, cover })
     }
 }
 
@@ -126,6 +135,8 @@ pub struct EhGallery {
     pub pages: Vec<EhPageUrl>,
     /// 发布时间
     pub posted: NaiveDateTime,
+    /// 封面是第几张
+    pub cover: usize,
 }
 
 pub trait GalleryInfo {
@@ -138,6 +149,8 @@ pub trait GalleryInfo {
     fn tags(&self) -> &IndexMap<String, Vec<String>>;
 
     fn pages(&self) -> usize;
+
+    fn cover(&self) -> usize;
 }
 
 impl GalleryInfo for EhGallery {
@@ -160,6 +173,10 @@ impl GalleryInfo for EhGallery {
     fn pages(&self) -> usize {
         self.pages.len()
     }
+
+    fn cover(&self) -> usize {
+        self.cover
+    }
 }
 
 impl GalleryInfo for GalleryEntity {
@@ -181,6 +198,10 @@ impl GalleryInfo for GalleryEntity {
 
     fn pages(&self) -> usize {
         self.pages as usize
+    }
+
+    fn cover(&self) -> usize {
+        0
     }
 }
 

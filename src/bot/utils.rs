@@ -5,7 +5,6 @@ use std::time::Instant;
 use anyhow::Result;
 use dashmap::DashMap;
 use image::EncodableLayout;
-use rand::prelude::*;
 use serde::{Deserialize, Serialize};
 use teloxide::prelude::*;
 use tokio::sync::mpsc::{channel, Receiver};

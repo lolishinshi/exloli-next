@@ -258,6 +258,9 @@ impl ExloliUploader {
         let images = ImageEntity::get_by_gallery_id(gallery.url().id()).await?;
 
         let mut html = String::new();
+        if gallery.cover() != 0 && gallery.cover() < images.len() {
+            html.push_str(&format!(r#"<img src="{}">"#, images[gallery.cover()].url))
+        }
         for img in images {
             html.push_str(&format!(r#"<img src="{}">"#, img.url));
         }

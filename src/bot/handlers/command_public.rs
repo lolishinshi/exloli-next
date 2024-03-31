@@ -1,6 +1,5 @@
 use anyhow::{anyhow, Context, Result};
 use rand::prelude::*;
-use rand::thread_rng;
 use reqwest::Url;
 use teloxide::dispatching::DpHandlerDescription;
 use teloxide::dptree::case;

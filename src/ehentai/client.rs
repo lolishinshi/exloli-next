@@ -171,7 +171,19 @@ impl EhClient {
         let pages = pages.into_iter().map(|s| s.parse()).collect::<Result<Vec<_>>>()?;
         info!("图片数量：{}", pages.len());
 
-        Ok(EhGallery { url: url.clone(), title, title_jp, parent, tags, favorite, pages, posted })
+        let cover = url.cover();
+
+        Ok(EhGallery {
+            url: url.clone(),
+            title,
+            title_jp,
+            parent,
+            tags,
+            favorite,
+            pages,
+            posted,
+            cover,
+        })
     }
 
     /// 获取画廊的某一页的图片的 fileindex 和实际地址
