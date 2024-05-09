@@ -48,7 +48,7 @@ async fn main() -> Result<()> {
         if let Err(err) = ehentai.archive_gallery(&gallery).await {
             warn!("下载失败: {}", err);
         } else {
-            tokio::time::sleep(Duration::from_secs(1800)).await;
+            tokio::time::sleep(Duration::from_secs(60 * 60)).await;
         }
     }
     Ok(())

@@ -153,13 +153,9 @@ impl EhClient {
 
         send!(self
             .0
-            .post(&format!(
-                "https://exhentai.org/archiver.php?gid={}&token={}&or={}",
-                url.id(),
-                url.token(),
-                or
-            ))
-            .body("hathdl_xres=org"))?;
+            .post("https://exhentai.org/archiver.php")
+            .query(&[("gid", &*url.id().to_string()), ("token", url.token()), ("or", or)])
+            .form(&[("hathdl_xres", "org")]))?;
 
         Ok(())
     }
