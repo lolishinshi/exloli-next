@@ -77,8 +77,18 @@ impl EhClient {
         params: &T,
         next: i32,
     ) -> Result<Vec<EhGalleryUrl>> {
-        let resp =
-            send!(self.0.get("https://exhentai.org").query(params).query(&[("next", next)]))?;
+        self.page("https://exhentai.org", params, next).await
+    }
+
+    /// 访问指定页面，返回画廊列表
+    #[tracing::instrument(skip(self, params))]
+    pub async fn page<T: Serialize + ?Sized + Debug>(
+        &self,
+        url: &str,
+        params: &T,
+        next: i32,
+    ) -> Result<Vec<EhGalleryUrl>> {
+        let resp = send!(self.0.get(url).query(params).query(&[("next", next)]))?;
         let html = Html::parse_document(&resp.text().await?);
 
         let selector = selector!("table.itg.gltc tr");
@@ -89,7 +99,7 @@ impl EhClient {
         for gl in gl_list.skip(1) {
             let title = gl.select_text("td.gl3c.glname a div.glink").unwrap();
             let url = gl.select_attr("td.gl3c.glname a", "href").unwrap();
-            info!(url, title);
+            debug!(url, title);
             ret.push(url.parse()?)
         }
 
@@ -102,12 +112,22 @@ impl EhClient {
         &'a self,
         params: &'a T,
     ) -> impl Stream<Item = EhGalleryUrl> + 'a {
+        self.page_iter("https://exhentai.org", params)
+    }
+
+    /// 获取指定页面的画廊列表，返回一个异步迭代器
+    #[tracing::instrument(skip(self, params))]
+    pub fn page_iter<'a, T: Serialize + ?Sized + Debug>(
+        &'a self,
+        url: &'a str,
+        params: &'a T,
+    ) -> impl Stream<Item = EhGalleryUrl> + 'a {
         stream::unfold(0, move |next| {
             async move {
-                match self.search_skip(params, next).await {
+                match self.page(url, params, next).await {
                     Ok(gls) => {
                         let next = gls.last().unwrap().id();
-                        info!("下一页 {}", next);
+                        debug!("下一页 {}", next);
                         Some((stream::iter(gls), next))
                     }
                     Err(e) => {
@@ -119,6 +139,29 @@ impl EhClient {
             .in_current_span()
         })
         .flatten()
+    }
+
+    #[tracing::instrument(skip(self))]
+    pub async fn archive_gallery(&self, url: &EhGalleryUrl) -> Result<()> {
+        static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"or=(?P<or>[0-9a-z-]+)").unwrap());
+
+        let resp = send!(self.0.get(url.url()))?;
+        let html = Html::parse_document(&resp.text().await?);
+        let onclick = html.select_attr("p.g2.gsp a", "onclick").unwrap();
+
+        let or = RE.captures(&onclick).and_then(|c| c.name("or")).unwrap().as_str();
+
+        send!(self
+            .0
+            .post(&format!(
+                "https://exhentai.org/archiver.php?gid={}&token={}&or={}",
+                url.id(),
+                url.token(),
+                or
+            ))
+            .body("hathdl_xres=org"))?;
+
+        Ok(())
     }
 
     #[tracing::instrument(skip(self))]
