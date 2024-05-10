@@ -1,4 +1,4 @@
-FROM rust:1.76-bullseye as builder
+FROM rust:bullseye as builder
 
 WORKDIR /app
 
@@ -9,9 +9,9 @@ COPY Cargo.lock .
 RUN cargo build --target-dir=target --release && rm -f src/main.rs
 
 COPY . .
-RUN cargo install --target-dir=target --path .
+RUN cargo install --target-dir=target  --bin=exloli --path .
 
-FROM debian:bullseye
+FROM debian:bullseye-slim
 ENV RUST_BACKTRACE=full
 WORKDIR /app
 RUN apt-get update \
