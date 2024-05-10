@@ -2,6 +2,7 @@ use std::env;
 use std::time::Duration;
 
 use anyhow::Result;
+use chrono::Timelike;
 use clap::Parser;
 use exloli_next::config::Config;
 use exloli_next::ehentai::EhClient;
@@ -48,8 +49,18 @@ async fn main() -> Result<()> {
         if let Err(err) = ehentai.archive_gallery(&gallery).await {
             warn!("下载失败: {}", err);
         } else {
-            tokio::time::sleep(Duration::from_secs(60 * 60)).await;
+            tokio::time::sleep(sleep_time()).await;
         }
     }
     Ok(())
+}
+
+fn sleep_time() -> Duration {
+    let now = chrono::Local::now();
+    // 2:30 ~ 8:30
+    if now.hour() >= 2 && now.hour() <= 8 {
+        Duration::from_secs(20 * 60)
+    } else {
+        Duration::from_secs(60 * 60)
+    }
 }
