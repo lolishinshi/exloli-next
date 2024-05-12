@@ -70,24 +70,14 @@ impl EhClient {
         Ok(Self(client))
     }
 
-    /// 使用指定参数查询符合要求的画廊列表
-    #[tracing::instrument(skip(self, params))]
-    pub async fn search_skip<T: Serialize + ?Sized + Debug>(
-        &self,
-        params: &T,
-        next: i32,
-    ) -> Result<Vec<EhGalleryUrl>> {
-        self.page("https://exhentai.org", params, next).await
-    }
-
     /// 访问指定页面，返回画廊列表
     #[tracing::instrument(skip(self, params))]
-    pub async fn page<T: Serialize + ?Sized + Debug>(
+    async fn page<T: Serialize + ?Sized + Debug>(
         &self,
         url: &str,
         params: &T,
-        next: i32,
-    ) -> Result<Vec<EhGalleryUrl>> {
+        next: &str,
+    ) -> Result<(Vec<EhGalleryUrl>, Option<String>)> {
         let resp = send!(self.0.get(url).query(params).query(&[("next", next)]))?;
         let html = Html::parse_document(&resp.text().await?);
 
@@ -103,7 +93,11 @@ impl EhClient {
             ret.push(url.parse()?)
         }
 
-        Ok(ret)
+        let next = html
+            .select_attr("a#unext", "href")
+            .and_then(|s| s.rsplit('=').next().map(|s| s.to_string()));
+
+        Ok((ret, next))
     }
 
     /// 搜索前 N 页的本子，返回一个异步迭代器
@@ -122,18 +116,20 @@ impl EhClient {
         url: &'a str,
         params: &'a T,
     ) -> impl Stream<Item = EhGalleryUrl> + 'a {
-        stream::unfold(0, move |next| {
+        stream::unfold(Some("0".to_string()), move |next| {
             async move {
-                match self.page(url, params, next).await {
-                    Ok(gls) => {
-                        let next = gls.last().unwrap().id();
-                        debug!("下一页 {}", next);
-                        Some((stream::iter(gls), next))
-                    }
-                    Err(e) => {
-                        error!("search error: {}", e);
-                        None
-                    }
+                match next {
+                    None => None,
+                    Some(next) => match self.page(url, params, &next).await {
+                        Ok((gls, next)) => {
+                            debug!("下一页 {:?}", next);
+                            Some((stream::iter(gls), next))
+                        }
+                        Err(e) => {
+                            error!("search error: {}", e);
+                            None
+                        }
+                    },
                 }
             }
             .in_current_span()
@@ -246,7 +242,7 @@ impl EhClient {
 
 fn extract_fileindex(url: &str) -> Option<u32> {
     static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"fileindex=(?P<fileindex>\d+)").unwrap());
-    let captures = RE.captures(&url)?;
+    let captures = RE.captures(url)?;
     let fileindex = captures.name("fileindex")?.as_str().parse().ok()?;
     Some(fileindex)
 }
