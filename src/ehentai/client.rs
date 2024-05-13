@@ -143,7 +143,7 @@ impl EhClient {
 
         let resp = send!(self.0.get(url.url()))?;
         let html = Html::parse_document(&resp.text().await?);
-        let onclick = html.select_attr("p.g2.gsp a", "onclick").unwrap();
+        let onclick = html.select_attr("p.g2 a", "onclick").unwrap();
 
         let or = RE.captures(&onclick).and_then(|c| c.name("or")).unwrap().as_str();
 
