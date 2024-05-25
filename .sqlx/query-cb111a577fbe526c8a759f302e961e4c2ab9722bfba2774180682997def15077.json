@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO challenge_history (user_id, gallery_id, page, success, answer_time, chat_id) VALUES (?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "cb111a577fbe526c8a759f302e961e4c2ab9722bfba2774180682997def15077"
+}

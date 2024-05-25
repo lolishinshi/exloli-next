@@ -15,21 +15,22 @@ pub struct InviteLink {
 
 impl InviteLink {
     pub async fn create(user_id: i64, link: &str) -> Result<SqliteQueryResult> {
-        sqlx::query(
+        let channel_id = CHANNEL_ID.get().unwrap();
+        let now = Utc::now().naive_utc();
+        sqlx::query!(
             "INSERT INTO invite_link (user_id, chat_id, link, created_at) VALUES (?, ?, ?, ?)",
+            user_id,
+            channel_id,
+            link,
+            now,
         )
-        .bind(user_id)
-        .bind(CHANNEL_ID.get().unwrap())
-        .bind(link)
-        .bind(Utc::now().naive_utc())
         .execute(&*DB)
         .await
     }
 
     pub async fn get(user_id: i64) -> Result<Option<InviteLink>> {
-        sqlx::query_as("SELECT * FROM invite_link WHERE user_id = ? AND chat_id = ? ORDER BY created_at DESC LIMIT 1")
-            .bind(user_id)
-            .bind(CHANNEL_ID.get().unwrap())
+        let channel_id = CHANNEL_ID.get().unwrap();
+        sqlx::query_as!(InviteLink, "SELECT * FROM invite_link WHERE user_id = ? AND chat_id = ? ORDER BY created_at DESC LIMIT 1", user_id, channel_id)
             .fetch_optional(&*DB)
             .await
     }

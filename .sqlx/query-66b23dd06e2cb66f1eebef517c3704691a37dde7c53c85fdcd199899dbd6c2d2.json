@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT\n                id as \"id: i32\",\n                channel_id,\n                gallery_id as \"gallery_id: i32\",\n                publish_date\n            FROM message\n            WHERE gallery_id = ? AND channel_id = ?\n            ORDER BY publish_date DESC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id: i32",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "channel_id",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "gallery_id: i32",
+        "ordinal": 2,
+        "type_info": "Int64"
+      },
+      {
+        "name": "publish_date",
+        "ordinal": 3,
+        "type_info": "Date"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "66b23dd06e2cb66f1eebef517c3704691a37dde7c53c85fdcd199899dbd6c2d2"
+}

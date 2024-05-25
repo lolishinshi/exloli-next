@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE gallery SET tags = ? WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "5b7d67bb82e07d739197d50e1340adc0fb9241f7b029b99098d5e842e9138b7f"
+}

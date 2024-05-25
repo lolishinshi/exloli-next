@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT\n                image.id as \"id: u32\",\n                image.hash as hash,\n                image.url as url\n            FROM image\n            JOIN page ON page.image_id = image.id\n            WHERE page.gallery_id = ?\n            ORDER BY page.page\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id: u32",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "hash",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "url",
+        "ordinal": 2,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "61558b08e67fc7d8ec8163be2794db74b63ca73c0a6e38e4f3dbe33773cae8f1"
+}

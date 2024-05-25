@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT EXISTS(SELECT 1 FROM gallery WHERE id = ?)",
+  "describe": {
+    "columns": [
+      {
+        "name": "EXISTS(SELECT 1 FROM gallery WHERE id = ?)",
+        "ordinal": 0,
+        "type_info": "Int"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "fb3b0d69427e7163aca7155f164fd12a0ba9f83e91903baa17ecd92e21cbc67b"
+}

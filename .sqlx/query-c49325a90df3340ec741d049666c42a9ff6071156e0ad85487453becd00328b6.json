@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT gallery_id as \"gallery_id: i32\", url FROM telegraph WHERE gallery_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "gallery_id: i32",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "url",
+        "ordinal": 1,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "c49325a90df3340ec741d049666c42a9ff6071156e0ad85487453becd00328b6"
+}

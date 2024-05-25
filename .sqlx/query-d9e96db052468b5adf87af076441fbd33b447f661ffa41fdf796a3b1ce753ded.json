@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM message WHERE id = ? AND channel_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "d9e96db052468b5adf87af076441fbd33b447f661ffa41fdf796a3b1ce753ded"
+}

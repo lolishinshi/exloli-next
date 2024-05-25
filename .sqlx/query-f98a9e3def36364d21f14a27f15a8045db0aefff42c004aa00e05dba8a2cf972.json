@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR IGNORE INTO poll (id, gallery_id, score) VALUES (?, ?, 0.0)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "f98a9e3def36364d21f14a27f15a8045db0aefff42c004aa00e05dba8a2cf972"
+}

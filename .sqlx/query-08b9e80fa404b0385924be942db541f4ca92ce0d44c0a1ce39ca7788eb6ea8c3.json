@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR IGNORE INTO page (gallery_id, page, image_id) VALUES (?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "08b9e80fa404b0385924be942db541f4ca92ce0d44c0a1ce39ca7788eb6ea8c3"
+}

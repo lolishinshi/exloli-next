@@ -13,24 +13,27 @@ pub struct TelegraphEntity {
 
 impl TelegraphEntity {
     pub async fn create(gallery_id: i32, telegraph: &str) -> Result<SqliteQueryResult> {
-        sqlx::query("REPLACE INTO telegraph (gallery_id, url) VALUES (?, ?)")
-            .bind(gallery_id)
-            .bind(telegraph)
-            .execute(&*DB)
-            .await
+        sqlx::query!(
+            "REPLACE INTO telegraph (gallery_id, url) VALUES (?, ?)",
+            gallery_id,
+            telegraph
+        )
+        .execute(&*DB)
+        .await
     }
 
     pub async fn get(gallery_id: i32) -> Result<Option<TelegraphEntity>> {
-        sqlx::query_as("SELECT * FROM telegraph WHERE gallery_id = ?")
-            .bind(gallery_id)
-            .fetch_optional(&*DB)
-            .await
+        sqlx::query_as!(
+            TelegraphEntity,
+            r#"SELECT gallery_id as "gallery_id: i32", url FROM telegraph WHERE gallery_id = ?"#,
+            gallery_id
+        )
+        .fetch_optional(&*DB)
+        .await
     }
 
     pub async fn update(gallery_id: i32, telegraph: &str) -> Result<SqliteQueryResult> {
-        sqlx::query("UPDATE telegraph SET telegraph = ? WHERE gallery_id = ?")
-            .bind(telegraph)
-            .bind(gallery_id)
+        sqlx::query!("UPDATE telegraph SET url = ? WHERE gallery_id = ?", telegraph, gallery_id)
             .execute(&*DB)
             .await
     }

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT OR IGNORE INTO image (id, hash, url) VALUES (?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "559998ce4048a09e93cf5a5dabed7b242dcaed9ee36b7cfc5511dfd9ede78c5b"
+}

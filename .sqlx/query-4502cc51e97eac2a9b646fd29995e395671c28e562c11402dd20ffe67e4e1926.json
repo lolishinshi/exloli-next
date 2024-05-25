@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT option, SUM(count) as \"cnt: i32\" FROM (\n                SELECT option, COUNT(option) AS count FROM poll JOIN vote ON poll.id = vote.poll_id WHERE poll.id = ? GROUP BY option\n                UNION ALL\n                SELECT key + 1 AS option, value AS count FROM poll, json_each(poll.old_vote) WHERE poll.id = ?\n            ) GROUP BY option\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "option",
+        "ordinal": 0,
+        "type_info": "Int"
+      },
+      {
+        "name": "cnt: i32",
+        "ordinal": 1,
+        "type_info": "Float"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "4502cc51e97eac2a9b646fd29995e395671c28e562c11402dd20ffe67e4e1926"
+}

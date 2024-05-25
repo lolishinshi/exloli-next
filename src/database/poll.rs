@@ -1,6 +1,6 @@
 use chrono::{NaiveDateTime, Utc};
 use sqlx::sqlite::SqliteQueryResult;
-use sqlx::{Result, Row};
+use sqlx::Result;
 use tracing::Level;
 
 use super::db::DB;
@@ -34,39 +34,43 @@ impl PollEntity {
     /// 插入一条记录，如果冲突则忽略
     #[tracing::instrument(level = Level::DEBUG)]
     pub async fn create(id: i64, gallery_id: i32) -> Result<SqliteQueryResult> {
-        sqlx::query("INSERT OR IGNORE INTO poll (id, gallery_id, score) VALUES (?, ?, 0.0)")
-            .bind(id)
-            .bind(gallery_id)
-            .execute(&*DB)
-            .await
+        sqlx::query!(
+            "INSERT OR IGNORE INTO poll (id, gallery_id, score) VALUES (?, ?, 0.0)",
+            id,
+            gallery_id
+        )
+        .execute(&*DB)
+        .await
     }
 
     #[tracing::instrument(level = Level::DEBUG)]
     pub async fn get_by_gallery(gallery_id: i32) -> Result<Option<Self>> {
-        sqlx::query_as("SELECT * FROM poll WHERE gallery_id = ?")
-            .bind(gallery_id)
-            .fetch_optional(&*DB)
-            .await
+        sqlx::query_as!(
+            Self,
+            r#"SELECT id, gallery_id as "gallery_id: i32", score as "score: f32", old_vote FROM poll WHERE gallery_id = ?"#,
+            gallery_id
+        )
+        .fetch_optional(&*DB)
+        .await
     }
 
     #[tracing::instrument(level = Level::DEBUG)]
     pub async fn get_vote(id: i64) -> Result<[i32; 5]> {
         let mut result = [0; 5];
-        let rows = sqlx::query(
+        let rows = sqlx::query!(
             r#"
-            SELECT option, SUM(count) FROM (
+            SELECT option, SUM(count) as "cnt: i32" FROM (
                 SELECT option, COUNT(option) AS count FROM poll JOIN vote ON poll.id = vote.poll_id WHERE poll.id = ? GROUP BY option
                 UNION ALL
                 SELECT key + 1 AS option, value AS count FROM poll, json_each(poll.old_vote) WHERE poll.id = ?
             ) GROUP BY option
-            "#
+            "#,
+            id, id
         )
-            .bind(id)
-            .bind(id)
             .fetch_all(&*DB)
             .await?;
         for row in rows {
-            result[row.get::<u32, _>(0) as usize - 1] = row.get(1);
+            result[row.option as usize] = row.cnt;
         }
         Ok(result)
     }
@@ -75,24 +79,19 @@ impl PollEntity {
     pub async fn update_score(id: i64) -> Result<f32> {
         let vote = Self::get_vote(id).await?;
         let score = wilson_score(&vote);
-        sqlx::query("UPDATE poll SET score = ? WHERE id = ?")
-            .bind(score)
-            .bind(id)
-            .execute(&*DB)
-            .await?;
+        sqlx::query!("UPDATE poll SET score = ? WHERE id = ?", score, id).execute(&*DB).await?;
         Ok(score)
     }
 
     /// 获取指定投票的分数排名区段，结果为一个 0~1 的小数
     #[tracing::instrument(level = Level::DEBUG)]
     pub async fn rank(&self) -> Result<f32> {
-        let (higher, total): (i32, i32) = sqlx::query_as(
-            "SELECT COUNT(*), (SELECT COUNT(*) FROM poll) FROM poll WHERE score > ?",
+        let record = sqlx::query!(
+            r#"SELECT COUNT(*) as "higher!: f32", (SELECT COUNT(*) FROM poll) as "total!: f32" FROM poll WHERE score > ?"#, self.score
         )
-        .bind(self.score)
         .fetch_one(&*DB)
         .await?;
-        Ok(higher as f32 / total as f32)
+        Ok(record.higher / record.total)
     }
 }
 
@@ -100,13 +99,17 @@ impl VoteEntity {
     /// 创建一个用户投票，创建完毕后请调用 PollEntity::update_score 来更新分数
     #[tracing::instrument(level = Level::DEBUG)]
     pub async fn create(user_id: u64, poll_id: i64, option: i32) -> Result<SqliteQueryResult> {
-        sqlx::query("REPLACE INTO vote (user_id, poll_id, option, vote_time) VALUES (?, ?, ?, ?)")
-            .bind(user_id as i64)
-            .bind(poll_id)
-            .bind(option)
-            .bind(Utc::now().naive_utc())
-            .execute(&*DB)
-            .await
+        let now = Utc::now().naive_utc();
+        let user_id = user_id as i64;
+        sqlx::query!(
+            "REPLACE INTO vote (user_id, poll_id, option, vote_time) VALUES (?, ?, ?, ?)",
+            user_id,
+            poll_id,
+            option,
+            now,
+        )
+        .execute(&*DB)
+        .await
     }
 }
 

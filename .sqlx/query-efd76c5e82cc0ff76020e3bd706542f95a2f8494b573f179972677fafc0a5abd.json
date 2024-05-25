@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE telegraph SET url = ? WHERE gallery_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "efd76c5e82cc0ff76020e3bd706542f95a2f8494b573f179972677fafc0a5abd"
+}

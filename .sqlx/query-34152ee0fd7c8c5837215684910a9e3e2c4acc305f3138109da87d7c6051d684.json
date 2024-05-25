@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO invite_link (user_id, chat_id, link, created_at) VALUES (?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "34152ee0fd7c8c5837215684910a9e3e2c4acc305f3138109da87d7c6051d684"
+}

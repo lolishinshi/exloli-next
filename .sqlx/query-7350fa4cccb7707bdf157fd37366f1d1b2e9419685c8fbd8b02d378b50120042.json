@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "REPLACE INTO vote (user_id, poll_id, option, vote_time) VALUES (?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "7350fa4cccb7707bdf157fd37366f1d1b2e9419685c8fbd8b02d378b50120042"
+}

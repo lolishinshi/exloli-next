@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT poll.score, gallery.title, gallery.id\n            FROM gallery\n            JOIN poll ON poll.gallery_id = gallery.id\n            JOIN message ON message.gallery_id = gallery.id\n            WHERE gallery.posted BETWEEN ? AND ?\n            GROUP BY poll.id\n            ORDER BY poll.score DESC LIMIT ? OFFSET ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "score",
+        "ordinal": 0,
+        "type_info": "Float"
+      },
+      {
+        "name": "title",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "id",
+        "ordinal": 2,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "75f2d54a319113b33a79848fc24c3bf279ba62122b20ea734610b4429904cd26"
+}

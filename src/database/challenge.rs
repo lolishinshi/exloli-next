@@ -28,9 +28,18 @@ pub struct ChallengeHistory {
 
 impl ChallengeView {
     pub async fn get_random() -> Result<Vec<Self>> {
-        sqlx::query_as(
+        sqlx::query_as!(
+            Self,
             r#"
-            SELECT * FROM (
+            SELECT
+                id as "id: i32",
+                token,
+                page as "page: i32",
+                artist as "artist!",
+                image_id as "image_id: i32",
+                url,
+                score as "score: f32"
+            FROM (
                 -- 此处使用 group by 嵌套 random，因为默认情况下 group by 只会显示每组的第一个结果
                 SELECT * FROM (
                     SELECT * FROM challenge_view
@@ -60,27 +69,26 @@ impl ChallengeHistory {
         success: bool,
         chat_id: i64,
     ) -> Result<SqliteQueryResult> {
-        sqlx::query(
-            "INSERT INTO challenge_history (user_id, gallery_id, page, success, answer_time, chat_id) VALUES (?, ?, ?, ?, ?, ?)"
+        let now = Utc::now().naive_utc();
+        sqlx::query!(
+            "INSERT INTO challenge_history (user_id, gallery_id, page, success, answer_time, chat_id) VALUES (?, ?, ?, ?, ?, ?)",
+            user,
+            gallery,
+            page,
+            success,
+            now,
+            chat_id,
         )
-        .bind(user)
-        .bind(gallery)
-        .bind(page)
-        .bind(success)
-        .bind(Utc::now().naive_utc())
-        .bind(chat_id)
         .execute(&*DB)
         .await
     }
 
     pub async fn answer_stats(user: i64, chat_id: i64) -> Result<(i32, i32)> {
-        let (success, total): (i32, i32) = sqlx::query_as(
-            "SELECT SUM(success) as success, COUNT(*) as total FROM challenge_history WHERE user_id = ? AND chat_id = ?",
+        let record = sqlx::query!(
+            r#"SELECT SUM(success) as "success!", COUNT(*) as "total!" FROM challenge_history WHERE user_id = ? AND chat_id = ?"#, user, chat_id,
         )
-        .bind(user)
-        .bind(chat_id)
         .fetch_one(&*DB)
         .await?;
-        Ok((success, total))
+        Ok((record.success, record.total))
     }
 }

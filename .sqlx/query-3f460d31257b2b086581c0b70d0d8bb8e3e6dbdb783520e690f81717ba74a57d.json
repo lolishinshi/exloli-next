@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "REPLACE INTO gallery (id, token, title, title_jp, tags, favorite, pages, parent, deleted, posted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 10
+    },
+    "nullable": []
+  },
+  "hash": "3f460d31257b2b086581c0b70d0d8bb8e3e6dbdb783520e690f81717ba74a57d"
+}

@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT COUNT(*) as \"higher!: f32\", (SELECT COUNT(*) FROM poll) as \"total!: f32\" FROM poll WHERE score > ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "higher!: f32",
+        "ordinal": 0,
+        "type_info": "Int"
+      },
+      {
+        "name": "total!: f32",
+        "ordinal": 1,
+        "type_info": "Int"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "74b091587d9f3d0d0c1a2d4c81b81a16b1aff5078423419681b4b1e1baabcee6"
+}

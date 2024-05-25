@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT SUM(success) as \"success!\", COUNT(*) as \"total!\" FROM challenge_history WHERE user_id = ? AND chat_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "success!",
+        "ordinal": 0,
+        "type_info": "Int"
+      },
+      {
+        "name": "total!",
+        "ordinal": 1,
+        "type_info": "Int"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      true,
+      false
+    ]
+  },
+  "hash": "256f9751e0c62af07af41f6bbde6ff1739d3ab253136ee6b6b36595e7ffe384f"
+}

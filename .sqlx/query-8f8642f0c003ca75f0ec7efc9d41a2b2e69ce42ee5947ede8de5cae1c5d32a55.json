@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id, gallery_id as \"gallery_id: i32\", score as \"score: f32\", old_vote FROM poll WHERE gallery_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "gallery_id: i32",
+        "ordinal": 1,
+        "type_info": "Int64"
+      },
+      {
+        "name": "score: f32",
+        "ordinal": 2,
+        "type_info": "Float"
+      },
+      {
+        "name": "old_vote",
+        "ordinal": 3,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "8f8642f0c003ca75f0ec7efc9d41a2b2e69ce42ee5947ede8de5cae1c5d32a55"
+}

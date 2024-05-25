@@ -47,17 +47,24 @@ impl GalleryEntity {
     /// 创建一条记录
     #[tracing::instrument(level = Level::DEBUG)]
     pub async fn create(g: &EhGallery) -> Result<SqliteQueryResult> {
-        sqlx::query("REPLACE INTO gallery (id, token, title, title_jp, tags, favorite, pages, parent, deleted, posted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-            .bind(g.url.id())
-            .bind(g.url.token())
-            .bind(&g.title)
-            .bind(&g.title_jp)
-            .bind(serde_json::to_string(&g.tags).unwrap())
-            .bind(g.favorite)
-            .bind(g.pages.len() as i32)
-            .bind(g.parent.as_ref().map(|g| g.id()))
-            .bind(false)
-            .bind(g.posted)
+        let id = g.url.id();
+        let token = g.url.token();
+        let tags = serde_json::to_string(&g.tags).unwrap();
+        let pages = g.pages.len() as i32;
+        let parent = g.parent.as_ref().map(|g| g.id());
+        sqlx::query!(
+            "REPLACE INTO gallery (id, token, title, title_jp, tags, favorite, pages, parent, deleted, posted) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            id,
+            token,
+            g.title,
+            g.title_jp,
+            tags,
+            g.favorite,
+            pages,
+            parent,
+            false,
+            g.posted,
+        )
             .execute(&*DB)
             .await
     }
@@ -87,36 +94,29 @@ impl GalleryEntity {
     /// 检查画廊是否存在，此处不会考虑删除标记
     #[tracing::instrument(level = Level::DEBUG)]
     pub async fn check(id: i32) -> Result<bool> {
-        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM gallery WHERE id = ?)")
-            .bind(id)
+        sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM gallery WHERE id = ?)", id)
             .fetch_one(&*DB)
             .await
+            .map(|x| x == Some(1))
     }
 
     /// 根据 ID 更新 tag
     #[tracing::instrument(level = Level::DEBUG)]
     pub async fn update_tags(id: i32, tags: &[(String, Vec<String>)]) -> Result<SqliteQueryResult> {
-        sqlx::query("UPDATE gallery SET tags = ? WHERE id = ?")
-            .bind(serde_json::to_string(tags).unwrap())
-            .bind(id)
-            .execute(&*DB)
-            .await
+        let tags = serde_json::to_string(tags).unwrap();
+        sqlx::query!("UPDATE gallery SET tags = ? WHERE id = ?", tags, id).execute(&*DB).await
     }
 
     /// 根据 ID 更新删除状态
     #[tracing::instrument(level = Level::DEBUG)]
     pub async fn update_deleted(id: i32, deleted: bool) -> Result<SqliteQueryResult> {
-        sqlx::query("UPDATE gallery SET deleted = ? WHERE id = ?")
-            .bind(deleted)
-            .bind(id)
-            .execute(&*DB)
-            .await
+        sqlx::query!("UPDATE gallery SET deleted = ? WHERE id = ?", deleted, id).execute(&*DB).await
     }
 
     /// 彻底删除一个画廊
     #[tracing::instrument(level = Level::DEBUG)]
     pub async fn delete(id: i32) -> Result<SqliteQueryResult> {
-        sqlx::query("DELETE FROM gallery WHERE id = ?").bind(id).execute(&*DB).await
+        sqlx::query!("DELETE FROM gallery WHERE id = ?", id).execute(&*DB).await
     }
 
     /// 查询自指定日期以来的本子，结果按分数从高到低排列
@@ -128,7 +128,8 @@ impl GalleryEntity {
         limit: i32,
         page: i32,
     ) -> Result<Vec<(f32, String, i32)>> {
-        sqlx::query_as(
+        let offset = page * limit;
+        let record = sqlx::query!(
             r#"SELECT poll.score, gallery.title, gallery.id
             FROM gallery
             JOIN poll ON poll.gallery_id = gallery.id
@@ -136,13 +137,14 @@ impl GalleryEntity {
             WHERE gallery.posted BETWEEN ? AND ?
             GROUP BY poll.id
             ORDER BY poll.score DESC LIMIT ? OFFSET ?"#,
+            start,
+            end,
+            limit,
+            offset,
         )
-        .bind(start)
-        .bind(end)
-        .bind(limit)
-        .bind(page * limit)
         .fetch_all(&*DB)
-        .await
+        .await?;
+        Ok(record.into_iter().map(|x| (x.score as f32, x.title, x.id as i32)).collect())
     }
 
     /// 列出所有 80 分以上或最近两个月上传的画廊

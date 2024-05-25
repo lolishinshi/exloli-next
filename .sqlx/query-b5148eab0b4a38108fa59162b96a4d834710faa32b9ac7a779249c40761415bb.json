@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id as \"id: u32\", hash, url FROM image WHERE hash = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id: u32",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "hash",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "url",
+        "ordinal": 2,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "b5148eab0b4a38108fa59162b96a4d834710faa32b9ac7a779249c40761415bb"
+}

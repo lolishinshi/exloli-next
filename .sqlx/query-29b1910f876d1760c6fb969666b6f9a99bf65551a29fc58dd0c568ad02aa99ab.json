@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM gallery WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "29b1910f876d1760c6fb969666b6f9a99bf65551a29fc58dd0c568ad02aa99ab"
+}

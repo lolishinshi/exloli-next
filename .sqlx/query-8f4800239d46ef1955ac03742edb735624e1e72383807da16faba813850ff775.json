@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "REPLACE INTO telegraph (gallery_id, url) VALUES (?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "8f4800239d46ef1955ac03742edb735624e1e72383807da16faba813850ff775"
+}
