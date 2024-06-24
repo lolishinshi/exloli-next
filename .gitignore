@@ -2,3 +2,4 @@
 .idea
 /db.*
 /config.toml
+.env

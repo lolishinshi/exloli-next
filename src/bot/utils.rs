@@ -126,7 +126,7 @@ pub struct ChallengeProvider(Arc<Mutex<Receiver<Vec<ChallengeView>>>>);
 
 impl ChallengeProvider {
     pub fn new() -> Self {
-        let (tx, rx) = channel(10);
+        let (tx, rx) = channel(5);
         tokio::spawn(async move {
             loop {
                 match Self::_get_challenge().await {
