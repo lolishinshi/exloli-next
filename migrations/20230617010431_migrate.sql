@@ -69,4 +69,4 @@ DROP TABLE IF EXISTS  ogallery;
 DROP TABLE IF EXISTS  user_vote;
 DROP TABLE IF EXISTS __diesel_schema_migrations;
 ALTER TABLE image_hash RENAME TO _del_image_hash;
-ALTER TABLE images RENAME TO _del_images;
+-- ALTER TABLE images RENAME TO _del_images;
