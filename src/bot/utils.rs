@@ -1,12 +1,13 @@
 use std::collections::VecDeque;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Instant, Duration};
 
 use anyhow::Result;
 use dashmap::DashMap;
 use image::EncodableLayout;
 use serde::{Deserialize, Serialize};
 use teloxide::prelude::*;
+use tokio::time::sleep;
 use tokio::sync::mpsc::{channel, Receiver};
 use tokio::sync::Mutex;
 use tracing::{info, warn};
@@ -145,6 +146,10 @@ impl ChallengeProvider {
     async fn _get_challenge() -> Result<Vec<ChallengeView>> {
         loop {
             let challenge = ChallengeView::get_random().await?;
+            if challenge.is_empty() {
+                sleep(Duration::from_secs(5)).await;
+                continue;
+            }
             let answer = &challenge[0];
             let url = format!("https://telegra.ph{}", answer.url);
             let resp = reqwest::get(&url).await?;
