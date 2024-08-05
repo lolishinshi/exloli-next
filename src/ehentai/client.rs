@@ -165,7 +165,7 @@ impl EhClient {
             let html = Html::parse_document(&resp.text().await?);
 
             // 英文标题、日文标题、父画廊
-            let title = html.select_text("h1#gn").unwrap();
+            let title = html.select_text("h1#gn").expect("xpath fail: h1#gn");
             let title_jp = html.select_text("h1#gj");
             let parent = html.select_attr("td.gdt2 a", "href").and_then(|s| s.parse().ok());
 
@@ -173,13 +173,17 @@ impl EhClient {
             let mut tags = IndexMap::new();
             let selector = selector!("div#taglist tr");
             for ele in html.select(&selector) {
-                let namespace = ele.select_text("td.tc").unwrap().trim_matches(':').to_string();
+                let namespace = ele
+                    .select_text("td.tc")
+                    .expect("xpath fail: td.tc")
+                    .trim_matches(':')
+                    .to_string();
                 let tag = ele.select_texts("td div a");
                 tags.insert(namespace, tag);
             }
 
             // 收藏数量
-            let favorite = html.select_text("#favcount").unwrap();
+            let favorite = html.select_text("#favcount").expect("xpath fail: #favcount");
             let favorite = favorite.split(' ').next().unwrap().parse().unwrap();
 
             // 发布时间

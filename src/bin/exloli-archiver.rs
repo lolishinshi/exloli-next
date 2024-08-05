@@ -51,6 +51,7 @@ async fn main() -> Result<()> {
         } else {
             tokio::time::sleep(sleep_time()).await;
         }
+        tokio::time::sleep(Duration::from_secs(5)).await;
     }
     Ok(())
 }

@@ -70,7 +70,7 @@ impl PollEntity {
             .fetch_all(&*DB)
             .await?;
         for row in rows {
-            result[row.option as usize] = row.cnt;
+            result[row.option as usize - 1] = row.cnt;
         }
         Ok(result)
     }
