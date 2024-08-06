@@ -2,3 +2,4 @@ db.*
 target
 .idea
 .git
+.env
