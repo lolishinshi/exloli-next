@@ -187,7 +187,7 @@ impl EhClient {
             let posted = NaiveDateTime::parse_from_str(posted, "%Y-%m-%d %H:%M")?;
 
             // 每一页的 URL
-            let pages = html.select_attrs("div.gdtl a", "href");
+            let pages = html.select_attrs("div.gdtm a", "href");
 
             // 下一页的 URL
             let next_page = html.select_attr("table.ptt td:last-child a", "href");
@@ -199,7 +199,7 @@ impl EhClient {
             debug!(next_page_url);
             let resp = send!(self.0.get(next_page_url))?;
             let html = Html::parse_document(&resp.text().await?);
-            pages.extend(html.select_attrs("div.gdtl a", "href"));
+            pages.extend(html.select_attrs("div.gdtm a", "href"));
             next_page = html.select_attr("table.ptt td:last-child a", "href");
         }
 
