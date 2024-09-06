@@ -1,15 +1,15 @@
 use std::collections::VecDeque;
 use std::sync::Arc;
-use std::time::{Instant, Duration};
+use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use dashmap::DashMap;
 use image::EncodableLayout;
 use serde::{Deserialize, Serialize};
 use teloxide::prelude::*;
-use tokio::time::sleep;
 use tokio::sync::mpsc::{channel, Receiver};
 use tokio::sync::Mutex;
+use tokio::time::sleep;
 use tracing::{info, warn};
 
 use crate::database::ChallengeView;

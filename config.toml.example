@@ -44,3 +44,10 @@ auth_group_id = -1001423106182
 bot_id ="test_bot"
 # bot token
 token = "xxxx:xxxxxxxx"
+
+[r2]
+account_id = "12345"
+bucket = "name"
+access_key = "ak"
+secret_key = "sk"
+host = "exloli.org"

@@ -21,7 +21,7 @@ pub struct ImageEntity {
     /// 图片的 sha1sum 前 10 位
     pub hash: String,
     /// 相对 https://telegra.ph 的图片 URL
-    pub url: String,
+    url: String,
 }
 
 impl ImageEntity {
@@ -64,6 +64,14 @@ impl ImageEntity {
         )
         .fetch_all(&*DB)
         .await
+    }
+
+    pub fn url(&self) -> String {
+        if self.url.starts_with("/file/") {
+            format!("https://telegra.ph{}", self.url)
+        } else {
+            self.url.clone()
+        }
     }
 }
 

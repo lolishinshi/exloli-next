@@ -20,8 +20,8 @@ use crate::database::{
     GalleryEntity, ImageEntity, MessageEntity, PageEntity, PollEntity, TelegraphEntity,
 };
 use crate::ehentai::{EhClient, EhGallery, EhGalleryUrl, GalleryInfo};
+use crate::s3::R2Uploader;
 use crate::tags::EhTagTransDB;
-use crate::utils::imagebytes::ImageBytes;
 use crate::utils::pad_left;
 
 #[derive(Debug, Clone)]
@@ -217,9 +217,9 @@ impl ExloliUploader {
             .in_current_span(),
         );
 
-        // TODO: 实现并行
-        // 依次将图片下载并上传到 telegraph，并插入 ImageEntity 和 PageEntity 记录
-        // TODO: telegraph 上传应该也不用并行，只有图片下载因为时分布式存储，并行也没关系
+        // 依次将图片下载并上传到 r2，并插入 ImageEntity 和 PageEntity 记录
+        let r2 = R2Uploader::new(&self.config.r2)?;
+        let host = self.config.r2.host.clone();
         let client = Client::builder()
             .timeout(Duration::from_secs(30))
             .connect_timeout(Duration::from_secs(30))
@@ -228,15 +228,14 @@ impl ExloliUploader {
             async move {
                 // TODO: 此处可以考虑一次上传多个图片，减少请求次数，避免触发 telegraph 的 rate limit
                 while let Some((page, (fileindex, url))) = rx.recv().await {
-                    // 跳过 gif，太大了，基本传不上去
-                    if url.ends_with(".gif") {
-                        continue;
-                    }
-                    let bytes = client.get(url).send().await?.bytes().await?.to_vec();
+                    let suffix = url.split('.').last().unwrap_or("jpg");
+                    let filename = format!("{}.{}", fileindex, suffix);
+                    let bytes = client.get(url).send().await?.bytes().await?;
                     debug!("已下载: {}", page.page());
-                    let resp = Telegraph::upload_with(&[ImageBytes(bytes)], &client).await?;
+                    r2.upload(&filename, &mut bytes.as_ref()).await?;
                     debug!("已上传: {}", page.page());
-                    ImageEntity::create(fileindex, page.hash(), &resp[0].src).await?;
+                    let url = format!("https://{}/{}", host, filename);
+                    ImageEntity::create(fileindex, page.hash(), &url).await?;
                     PageEntity::create(page.gallery_id(), page.page(), fileindex).await?;
                 }
                 Result::<()>::Ok(())
@@ -259,10 +258,10 @@ impl ExloliUploader {
 
         let mut html = String::new();
         if gallery.cover() != 0 && gallery.cover() < images.len() {
-            html.push_str(&format!(r#"<img src="{}">"#, images[gallery.cover()].url))
+            html.push_str(&format!(r#"<img src="{}">"#, images[gallery.cover()].url()))
         }
         for img in images {
-            html.push_str(&format!(r#"<img src="{}">"#, img.url));
+            html.push_str(&format!(r#"<img src="{}">"#, img.url()));
         }
         html.push_str(&format!("<p>图片总数：{}</p>", gallery.pages()));
 

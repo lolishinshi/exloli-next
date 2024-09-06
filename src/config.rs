@@ -22,6 +22,7 @@ pub struct Config {
     pub exhentai: ExHentai,
     pub telegraph: Telegraph,
     pub telegram: Telegram,
+    pub r2: R2,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -58,6 +59,20 @@ pub struct Telegram {
     pub group_id: ChatId,
     /// 入口讨论组 ID
     pub auth_group_id: ChatId,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct R2 {
+    /// cloudflare 用户 id
+    pub account_id: String,
+    /// bucket 名称
+    pub bucket: String,
+    /// access-key
+    pub access_key: String,
+    /// secret-key
+    pub secret_key: String,
+    /// 访问连接
+    pub host: String,
 }
 
 impl Config {
