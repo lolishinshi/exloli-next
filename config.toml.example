@@ -46,8 +46,13 @@ bot_id ="test_bot"
 token = "xxxx:xxxxxxxx"
 
 [r2]
+# cf 用户名 id
 account_id = "12345"
+# 桶名称
 bucket = "name"
+# access key
 access_key = "ak"
+# secret key
 secret_key = "sk"
-host = "exloli.org"
+# 桶绑定的域名
+host = "example.com"
