@@ -229,7 +229,10 @@ impl ExloliUploader {
                 // TODO: 此处可以考虑一次上传多个图片，减少请求次数，避免触发 telegraph 的 rate limit
                 while let Some((page, (fileindex, url))) = rx.recv().await {
                     let suffix = url.split('.').last().unwrap_or("jpg");
-                    let filename = format!("{}.{}", fileindex, suffix);
+                    if suffix == "gif" {
+                        continue;
+                    }
+                    let filename = format!("{}.{}", page.hash(), suffix);
                     let bytes = client.get(url).send().await?.bytes().await?;
                     debug!("已下载: {}", page.page());
                     r2.upload(&filename, &mut bytes.as_ref()).await?;
