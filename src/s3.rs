@@ -1,19 +1,19 @@
-use crate::config::R2;
+use crate::config::S3;
 use s3::creds::Credentials;
 use s3::error::S3Error;
 use s3::{Bucket, Region};
 use tokio::io::AsyncRead;
 
-pub struct R2Uploader {
+pub struct S3Uploader {
     bucket: Box<Bucket>,
 }
 
-impl R2Uploader {
-    pub fn new(r2: &R2) -> Result<Self, S3Error> {
-        let region = Region::R2 { account_id: r2.account_id.clone() };
+impl S3Uploader {
+    pub fn new(s3: &S3) -> Result<Self, S3Error> {
+        let region = Region::Custom { region: s3.region.clone(), endpoint: s3.endpoint.clone() };
         let credentials =
-            Credentials::new(Some(&r2.access_key), Some(&r2.secret_key), None, None, None)?;
-        let bucket = Bucket::new(&r2.bucket, region, credentials)?;
+            Credentials::new(Some(&s3.access_key), Some(&s3.secret_key), None, None, None)?;
+        let bucket = Bucket::new(&s3.bucket, region, credentials)?;
         Ok(Self { bucket })
     }
 

@@ -45,9 +45,11 @@ bot_id ="test_bot"
 # bot token
 token = "xxxx:xxxxxxxx"
 
-[r2]
-# cf 用户名 id
-account_id = "12345"
+[s3]
+# s3 地区
+region = "region"
+# s3 api 地址
+endpoint = "https://endpoint.s3.com"
 # 桶名称
 bucket = "name"
 # access key
