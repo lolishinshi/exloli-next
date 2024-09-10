@@ -185,71 +185,87 @@ impl ExloliUploader {
 }
 
 impl ExloliUploader {
-    /// 获取某个画廊里的所有图片，并且上传到 telegrpah，如果已经上传过的，会跳过上传
-    async fn upload_gallery_image(&self, gallery: &EhGallery) -> Result<()> {
-        // 扫描所有图片
-        // 对于已经上传过的图片，不需要重复上传，只需要插入 PageEntity 记录即可
-        let mut pages = vec![];
-        for page in &gallery.pages {
-            match ImageEntity::get_by_hash(page.hash()).await? {
-                Some(img) => {
-                    // NOTE: 此处存在重复插入的可能，但是由于 PageEntity::create 使用 OR IGNORE，所以不影响
-                    PageEntity::create(page.gallery_id(), page.page(), img.id).await?;
-                }
-                None => pages.push(page.clone()),
+async fn upload_gallery_image(&self, gallery: &EhGallery) -> Result<()> {
+    // 扫描所有图片
+    let mut pages = vec![];
+    for page in &gallery.pages {
+        match ImageEntity::get_by_hash(page.hash()).await? {
+            Some(img) => {
+                PageEntity::create(page.gallery_id(), page.page(), img.id).await?;
             }
+            None => pages.push(page.clone()),
         }
-        info!("需要下载&上传 {} 张图片", pages.len());
-
-        let concurrent = self.config.threads_num;
-        let (tx, mut rx) = tokio::sync::mpsc::channel(concurrent * 2);
-        let client = self.ehentai.clone();
-
-        // 获取图片链接时不要并行，避免触发反爬限制
-        let getter = tokio::spawn(
-            async move {
-                for page in pages {
-                    let rst = client.get_image_url(&page).await?;
-                    info!("已解析：{}", page.page());
-                    tx.send((page, rst)).await?;
-                }
-                Result::<()>::Ok(())
-            }
-            .in_current_span(),
-        );
-
-        // 依次将图片下载并上传到 r2，并插入 ImageEntity 和 PageEntity 记录
-        let s3 = S3Uploader::new(&self.config.s3)?;
-        let host = self.config.s3.host.clone();
-        let client = Client::builder()
-            .timeout(Duration::from_secs(30))
-            .connect_timeout(Duration::from_secs(30))
-            .build()?;
-        let uploader = tokio::spawn(
-            async move {
-                while let Some((page, (fileindex, url))) = rx.recv().await {
-                    let suffix = url.split('.').last().unwrap_or("jpg");
-                    if suffix == "gif" {
-                        continue;
-                    }
-                    let filename = format!("{}.{}", page.hash(), suffix);
-                    let bytes = client.get(url).send().await?.bytes().await?;
-                    debug!("已下载: {}", page.page());
-                    s3.upload(&filename, &mut bytes.as_ref()).await?;
-                    debug!("已上传: {}", page.page());
-                    let url = format!("https://{}/{}", host, filename);
-                    ImageEntity::create(fileindex, page.hash(), &url).await?;
-                    PageEntity::create(page.gallery_id(), page.page(), fileindex).await?;
-                }
-                Result::<()>::Ok(())
-            }
-            .in_current_span(),
-        );
-
-        tokio::try_join!(flatten(getter), flatten(uploader))?;
-
-        Ok(())
     }
+    info!("需要下载&上传 {} 张图片", pages.len());
+
+    let concurrent = self.config.threads_num;
+    let (tx, mut rx) = tokio::sync::mpsc::channel(concurrent * 2);
+    let client = self.ehentai.clone();
+
+    // 获取图片链接时不要并行，避免触发反爬限制
+    let getter = tokio::spawn(
+        async move {
+            for page in pages {
+                let rst = client.get_image_url(&page).await?;
+                info!("已解析：{}", page.page());
+                tx.send((page, rst)).await?;
+            }
+            Result::<()>::Ok(())
+        }
+        .in_current_span(),
+    );
+
+    // 依次将图片下载并上传到指定 API，并插入 ImageEntity 和 PageEntity 记录
+    let client = Client::builder()
+        .timeout(Duration::from_secs(30))
+        .connect_timeout(Duration::from_secs(30))
+        .build()?;
+    let uploader = tokio::spawn(
+        async move {
+            while let Some((page, (fileindex, url))) = rx.recv().await {
+                let suffix = url.split('.').last().unwrap_or("jpg");
+                if suffix == "gif" {
+                    continue;
+                }
+                let filename = format!("{}.{}", page.hash(), suffix);
+                let bytes = client.get(url).send().await?.bytes().await?;
+                debug!("已下载: {}", page.page());
+
+                // 上传到指定 API
+                let form = reqwest::multipart::Form::new()
+                    .file("source", Cursor::new(bytes))
+                    .text("type", "file")
+                    .text("action", "upload");
+
+                let response = client.post("https://zh-cn.imgbb.com/json")
+                    .multipart(form)
+                    .send()
+                    .await?;
+
+                if response.status() == StatusCode::OK {
+                    let json: serde_json::Value = response.json().await?;
+                    if let Some(image_url) = json.get("image").and_then(|img| img.get("url")) {
+                        let url = image_url.as_str().unwrap_or_default();
+                        ImageEntity::create(fileindex, page.hash(), url).await?;
+                        PageEntity::create(page.gallery_id(), page.page(), fileindex).await?;
+                        debug!("已上传到 API: {}", page.page());
+                    } else {
+                        error!("上传失败，未找到图片 URL: {:?}", json);
+                    }
+                } else {
+                    error!("上传失败，状态码: {}", response.status());
+                }
+            }
+            Result::<()>::Ok(())
+        }
+        .in_current_span(),
+    );
+
+    tokio::try_join!(flatten(getter), flatten(uploader))?;
+
+    Ok(())
+}
+
 
     /// 从数据库中读取某个画廊的所有图片，生成一篇 telegraph 文章
     /// 为了防止画廊被删除后无法更新，此处不应该依赖 EhGallery
