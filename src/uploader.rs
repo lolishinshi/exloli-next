@@ -5,7 +5,9 @@ use anyhow::{anyhow, bail, Result};
 use chrono::{Datelike, Utc};
 use futures::StreamExt;
 use regex::Regex;
-use reqwest::{Client, StatusCode, multipart::Multipart};
+use reqwest::{Client, StatusCode};
+use reqwest::multipart::{Form, Multipart};
+use reqwest::Client;
 use std::io::Cursor;
 use telegraph_rs::{html_to_node, Telegraph};
 use teloxide::prelude::*;
@@ -21,7 +23,6 @@ use crate::database::{
     GalleryEntity, ImageEntity, MessageEntity, PageEntity, PollEntity, TelegraphEntity,
 };
 use crate::ehentai::{EhClient, EhGallery, EhGalleryUrl, GalleryInfo};
-use crate::s3::S3Uploader;
 use crate::tags::EhTagTransDB;
 use crate::utils::pad_left;
 
