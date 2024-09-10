@@ -1,12 +1,12 @@
 use std::backtrace::Backtrace;
 use std::time::Duration;
-use std::io::Cursor;
 
 use anyhow::{anyhow, bail, Result};
 use chrono::{Datelike, Utc};
 use futures::StreamExt;
 use regex::Regex;
-use reqwest::{Client, StatusCode};
+use reqwest::{Client, StatusCode, multipart::Multipart};
+use std::io::Cursor;
 use telegraph_rs::{html_to_node, Telegraph};
 use teloxide::prelude::*;
 use teloxide::types::MessageId;
@@ -303,10 +303,10 @@ async fn upload_gallery_image(&self, gallery: &EhGallery) -> Result<()> {
         let mut text = String::new();
         for (ns, tag) in tags {
             let tag = tag
-                。iter()
-                。map(|s| format!("#{}", re.replace_all(s, "_")))
-                。collect::<Vec<_>>()
-                。join(" ");
+                .iter()
+                .map(|s| format!("#{}", re.replace_all(s, "_")))
+                .collect::<Vec<_>>()
+                .join(" ");
             text.push_str(&format!("{}: {}\n", code_inline(&pad_left(&ns, 6)), tag))
         }
 
