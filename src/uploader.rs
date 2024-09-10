@@ -233,10 +233,11 @@ async fn upload_gallery_image(&self, gallery: &EhGallery) -> Result<()> {
                 debug!("已下载: {}", page.page());
 
                 // 上传到指定 API
-                let form = reqwest::multipart::Form::new()
-                    .part("source", Cursor::new(bytes))
-                    .text("type", "file")
-                    .text("action", "upload");
+                let mut multipart = Multipart::new();
+                multipart = multipart.text("key", &self.api_key)
+                                    .text("action", "upload")
+                                    .text("action", "upload");
+                                    .part("source", Part::from_reader(Cursor::new(bytes), Bytes::from(bytes).into()));
 
                 let response = client.post("https://zh-cn.imgbb.com/json")
                     .multipart(form)
