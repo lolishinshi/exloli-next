@@ -248,10 +248,14 @@ async fn upload_gallery_image(&self, gallery: &EhGallery) -> Result<()> {
                 if response.status() == StatusCode::OK {
                     let json: serde_json::Value = response.json().await?;
                     if let Some(image_url) = json.get("image").and_then(|img| img.get("url")) {
-                        let url = image_url.as_str().unwrap_or_default();
-                        ImageEntity::create(fileindex, page.hash(), url).await?;
+                        let original_url = image_url.as_str().unwrap_or_default();
+                        
+                        // 替换URL中的域名部分
+                        let url = original_url.replace("https://i.ibb.co", &self.config.imgbb.proxy_url);
+                        
+                        ImageEntity::create(fileindex, page.hash(), &url).await?;
                         PageEntity::create(page.gallery_id(), page.page(), fileindex).await?;
-                        debug!("已上传到 API: {}", page.page());
+                        debug!("已上传到 API 并替换URL: {}", page.page());
                     } else {
                         error!("上传失败，未找到图片 URL: {:?}", json);
                     }
