@@ -34,27 +34,26 @@ pub struct ExloliUploader {
     trans: EhTagTransDB,
 }
 
-use reqwest::Client;
-use std::io::Cursor;
-
-struct ImgBBUploader {
+pub struct ImgBBUploader {
     api_key: String,
     client: Client,
+    proxy_url: String,
 }
 
 impl ImgBBUploader {
-    fn new(api_key: &str) -> Self {
+    pub fn new(config: &Config) -> Self {
         ImgBBUploader {
-            api_key: api_key.to_string(),
+            api_key: config.imgbb.api_key.clone(),
             client: Client::builder()
                 .timeout(std::time::Duration::from_secs(30))
                 .connect_timeout(std::time::Duration::from_secs(30))
                 .build()
                 .expect("Failed to build client"),
+            proxy_url: config.imgbb.proxy_url.clone(),
         }
     }
 
-    async fn upload(&self, filename: &str, bytes: &[u8]) -> Result<String, Box<dyn std::error::Error>> {
+    pub async fn upload(&self, filename: &str, bytes: &[u8]) -> Result<String, Box<dyn std::error::Error>> {
         let form = reqwest::multipart::Form::new()
             .text("key", self.api_key.clone())
             .text("action", "upload")
@@ -66,15 +65,16 @@ impl ImgBBUploader {
             .multipart(form)
             .send()
             .await?
-            .json::<serde_json::Value>()
+            .json::<Value>()
             .await?;
 
         let image_url = resp["image"]["url"].as_str().ok_or("Failed to get image URL")?;
-        Ok(image_url.to_string())
+        let proxied_url = image_url.replace("https://i.ibb.co", &self.proxy_url);
+
+        Ok(proxied_url)
     }
 }
 
-// 假设 ImageEntity::create 和 PageEntity::create 已经定义好了
 async fn upload_image_to_imgbb(&self, filename: &str, bytes: &[u8], fileindex: usize, page: &Page) -> Result<(), Box<dyn std::error::Error>> {
     let imgbb_uploader = ImgBBUploader::new(self.config.imgbb_api_key.as_str());
     let url = imgbb_uploader.upload(filename, bytes).await?;
@@ -233,22 +233,24 @@ impl ExloliUploader {
     }
 }
 
-struct ExloliUploader {
-    ehentai: EhentaiClient,
+pub struct ExloliUploader {
+    ehentai: EhClient,
     config: Config,
     imgbb_uploader: ImgBBUploader,
 }
 
 impl ExloliUploader {
-    fn new(ehentai: EhentaiClient, config: Config) -> Self {
+    pub fn new(ehentai: EhClient, config: Config) -> Self {
+        let imgbb_uploader = ImgBBUploader::new(&config);
+
         ExloliUploader {
             ehentai,
             config,
-            imgbb_uploader: ImgBBUploader::new(&config.imbb_api_key),
+            imgbb_uploader,
         }
     }
 
-    async fn upload_gallery_image(&self, gallery: &EhGallery) -> Result<()> {
+    pub async fn upload_gallery_image(&self, gallery: &EhGallery) -> Result<(), Box<dyn std::error::Error>> {
         // 扫描所有图片
         let mut pages = vec![];
         for page in &gallery.pages {
@@ -259,7 +261,7 @@ impl ExloliUploader {
                 None => pages.push(page.clone()),
             }
         }
-        info!("需要下载&上传 {} 张图片", pages.len());
+        log::info!("需要下载&上传 {} 张图片", pages.len());
 
         let concurrent = self.config.threads_num;
         let (tx, mut rx) = tokio::sync::mpsc::channel(concurrent * 2);
@@ -269,10 +271,10 @@ impl ExloliUploader {
         let getter = tokio::spawn(async move {
             for page in pages {
                 let rst = client.get_image_url(&page).await?;
-                info!("已解析：{}", page.page());
+                log::info!("已解析：{}", page.page());
                 tx.send((page, rst)).await?;
             }
-            Result::<()>::Ok(())
+            Ok::<(), Box<dyn std::error::Error>>(())
         });
 
         // 依次将图片下载并上传到 ImgBB，并插入 ImageEntity 和 PageEntity 记录
@@ -288,23 +290,23 @@ impl ExloliUploader {
                 }
                 let filename = format!("{}.{}", page.hash(), suffix);
                 let bytes = client.get(url).send().await?.bytes().await?;
-                debug!("已下载: {}", page.page());
-                self.upload_image_to_imgbb(&filename, &bytes, fileindex, &page).await?;
-                debug!("已上传: {}", page.page());
+                log::debug!("已下载: {}", page.page());
+                let url = self.upload_image_to_imgbb(&filename, &bytes, fileindex, &page).await?;
+                log::debug!("已上传: {}", page.page());
+                ImageEntity::create(fileindex, page.hash(), &url).await?;
+                PageEntity::create(page.gallery_id(), page.page(), fileindex).await?;
             }
-            Result::<()>::Ok(())
+            Ok::<(), Box<dyn std::error::Error>>(())
         });
 
-        tokio::try_join!(flatten(getter), flatten(uploader))?;
+        tokio::try_join!(getter, uploader)?;
 
         Ok(())
     }
 
-    async fn upload_image_to_imgbb(&self, filename: &str, bytes: &[u8], fileindex: usize, page: &Page) -> Result<(), Box<dyn std::error::Error>> {
+    async fn upload_image_to_imgbb(&self, filename: &str, bytes: &[u8], fileindex: usize, page: &Page) -> Result<String, Box<dyn std::error::Error>> {
         let url = self.imgbb_uploader.upload(filename, bytes).await?;
-        ImageEntity::create(fileindex, page.hash(), &url).await?;
-        PageEntity::create(page.gallery_id(), page.page(), fileindex).await?;
-        Ok(())
+        Ok(url)
     }
 }
 
