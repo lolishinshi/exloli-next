@@ -20,7 +20,7 @@ use crate::database::{
     GalleryEntity, ImageEntity, MessageEntity, PageEntity, PollEntity, TelegraphEntity,
 };
 use crate::ehentai::{EhClient, EhGallery, EhGalleryUrl, GalleryInfo};
-use crate::s3::R2Uploader;
+use crate::s3::S3Uploader;
 use crate::tags::EhTagTransDB;
 use crate::utils::pad_left;
 
@@ -218,15 +218,14 @@ impl ExloliUploader {
         );
 
         // 依次将图片下载并上传到 r2，并插入 ImageEntity 和 PageEntity 记录
-        let r2 = R2Uploader::new(&self.config.r2)?;
-        let host = self.config.r2.host.clone();
+        let s3 = S3Uploader::new(&self.config.s3)?;
+        let host = self.config.s3.host.clone();
         let client = Client::builder()
             .timeout(Duration::from_secs(30))
             .connect_timeout(Duration::from_secs(30))
             .build()?;
         let uploader = tokio::spawn(
             async move {
-                // TODO: 此处可以考虑一次上传多个图片，减少请求次数，避免触发 telegraph 的 rate limit
                 while let Some((page, (fileindex, url))) = rx.recv().await {
                     let suffix = url.split('.').last().unwrap_or("jpg");
                     if suffix == "gif" {
@@ -235,7 +234,7 @@ impl ExloliUploader {
                     let filename = format!("{}.{}", page.hash(), suffix);
                     let bytes = client.get(url).send().await?.bytes().await?;
                     debug!("已下载: {}", page.page());
-                    r2.upload(&filename, &mut bytes.as_ref()).await?;
+                    s3.upload(&filename, &mut bytes.as_ref()).await?;
                     debug!("已上传: {}", page.page());
                     let url = format!("https://{}/{}", host, filename);
                     ImageEntity::create(fileindex, page.hash(), &url).await?;

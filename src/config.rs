@@ -22,7 +22,7 @@ pub struct Config {
     pub exhentai: ExHentai,
     pub telegraph: Telegraph,
     pub telegram: Telegram,
-    pub r2: R2,
+    pub s3: S3,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -62,16 +62,18 @@ pub struct Telegram {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct R2 {
-    /// cloudflare 用户 id
-    pub account_id: String,
+pub struct S3 {
+    /// region
+    pub region: String,
+    /// S3 endpoint
+    pub endpoint: String,
     /// bucket 名称
     pub bucket: String,
     /// access-key
     pub access_key: String,
     /// secret-key
     pub secret_key: String,
-    /// 访问连接
+    /// 公开访问连接
     pub host: String,
 }
 

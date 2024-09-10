@@ -1,7 +1,7 @@
 version: "3.3"
 services:
   exloli:
-    image: "aloxaf/exloli-next:0.3.4"
+    image: "aloxaf/exloli-next:latest"
     container_name: exloli
     volumes:
       - ./:/app
