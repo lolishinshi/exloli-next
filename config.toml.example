@@ -45,6 +45,10 @@ bot_id ="test_bot"
 # bot token
 token = "xxxx:xxxxxxxx"
 
+[imgbb]
+api_key = "your-api-key"
+proxy_url = "https://your-proxy-url.com"
+
 [s3]
 # s3 地区
 region = "region"
