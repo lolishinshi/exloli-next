@@ -13,6 +13,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Build Rust Project
+        run: |
+          cargo build --release
+
+      - name: Run Rust Application
+        run: |
+          cargo run --release
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -30,9 +38,22 @@ jobs:
         run: |
           # 生成随机字符串
           RANDOM_STRING=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 6 | head -n 1)
+          # 输出随机字符串以供调试
+          echo "Generated Random String: $RANDOM_STRING"
+
           # 生成基于年月日的标签
-          TIMESTAMP_TAG=$(date +'%Y%m%d')-$RANDOM_STRING
-          echo "TAG=$TIMESTAMP_TAG" >> $GITHUB_OUTPUT
+          TIMESTAMP_TAG=$(date +'%Y%m%d')
+          # 输出年月日标签以供调试
+          echo "Generated Timestamp Tag: $TIMESTAMP_TAG"
+
+          # 组合最终的标签
+          FINAL_TAG="$TIMESTAMP_TAG-$RANDOM_STRING"
+          # 输出最终标签以供调试
+          echo "Final Tag: $FINAL_TAG"
+
+          # 将最终标签保存到 GITHUB_OUTPUT
+          echo "TAG=$FINAL_TAG" >> $GITHUB_OUTPUT
+        shell: bash
 
       - name: Build and push Docker image
         id: build-and-push
