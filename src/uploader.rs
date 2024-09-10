@@ -31,7 +31,6 @@ pub struct ExloliUploader {
     bot: Bot,
     config: Config,
     trans: EhTagTransDB,
-    api_key: String,
 }
 
 impl ExloliUploader {
@@ -52,7 +51,6 @@ impl ExloliUploader {
             telegraph,
             bot,
             trans,
-            imgbb,
         })
     }
 
@@ -240,8 +238,8 @@ impl ExloliUploader {
 
                     // 上传到指定 API
                     let form = Form::new()
-                        .text("key", self.api_key.clone())
                         .text("action", "upload")
+                        .text("type", "flie")
                         .part("source", Part::stream(Bytes::from(bytes))
                             .file_name(filename)
                             .mime_str("image/jpeg")?);
