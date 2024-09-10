@@ -6,7 +6,8 @@ WORKDIR /app
 RUN mkdir src && echo 'fn main() {}' > src/main.rs
 COPY Cargo.toml .
 COPY Cargo.lock .
-RUN cargo build --target-dir=target --release && rm -f src/main.rs
+RUN cargo build --target-dir=target --release
+RUN if [ -f src/main.rs ]; then rm src/main.rs; fi
 
 COPY . .
 RUN cargo install --target-dir=target  --bin=exloli --path .
