@@ -28,10 +28,10 @@ jobs:
       - name: Generate timestamp and random string tag
         id: tag
         run: |
-          RANDOM_STRING=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 6 | head -n 1)
           TIMESTAMP_TAG=$(date +'%Y%m%d')
-          FINAL_TAG="$TIMESTAMP_TAG-$RANDOM_STRING"
-          echo "TAG=$FINAL_TAG" >> $GITHUB_OUTPUT
+          RANDOM_STRING=$(openssl rand -hex 3)
+          FINAL_TAG="${TIMESTAMP_TAG}-${RANDOM_STRING}"
+          echo "TAG=${FINAL_TAG}" >> $GITHUB_OUTPUT
         shell: bash
 
       - name: Build and push Docker image
