@@ -220,6 +220,9 @@ impl ExloliUploader {
             .in_current_span(),
         );
 
+        // 克隆需要在闭包中使用的值
+        let config_imgbb_proxy_url = self.config.imgbb.proxy_url.clone();
+
         // 依次将图片下载并上传到指定 API并插入 ImageEntity 和 PageEntity 记录
         let client = Client::builder()
             .timeout(Duration::from_secs(30))
@@ -254,8 +257,8 @@ impl ExloliUploader {
                         if let Some(image_url) = json.get("image").and_then(|img| img.get("url")) {
                             let original_url = image_url.as_str().unwrap_or_default();
                             
-                            // 替换URL中的域名部分
-                            let url = original_url.replace("https://i.ibb.co", &self.config.imgbb.proxy_url);
+                            // 使用克隆的值替换URL中的域名部分
+                            let url = original_url.replace("https://i.ibb.co", &config_imgbb_proxy_url);
                             
                             ImageEntity::create(fileindex, page.hash(), &url).await?;
                             PageEntity::create(page.gallery_id(), page.page(), fileindex).await?;
