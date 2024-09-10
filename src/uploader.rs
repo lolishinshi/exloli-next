@@ -234,7 +234,7 @@ async fn upload_gallery_image(&self, gallery: &EhGallery) -> Result<()> {
 
                 // 上传到指定 API
                 let form = reqwest::multipart::Form::new()
-                    .file("source", Cursor::new(bytes))
+                    .part("source", Cursor::new(bytes))
                     .text("type", "file")
                     .text("action", "upload");
 
