@@ -1,7 +1,9 @@
 [package]
 name = "exloli-next"
-version = "0.4.1"
+version = "0.1.0"
 edition = "2021"
+
+# 如果需要 default-run，请确保它与 name 匹配
 default-run = "exloli-next"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -41,3 +43,7 @@ unicode-width = "0.1.13"
 
 [profile.dev.package.sqlx-macros]
 opt-level = 3
+
+[[bin]]
+name = "exloli-next"
+path = "src/main.rs"
