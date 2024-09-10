@@ -360,7 +360,7 @@ impl ExloliUploader {
 
         Ok(text)
     }
-}
+
 
 async fn flatten<T>(handle: JoinHandle<Result<T>>) -> Result<T> {
     match handle.await {
