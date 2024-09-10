@@ -6,7 +6,7 @@ use chrono::{Datelike, Utc};
 use futures::StreamExt;
 use regex::Regex;
 use reqwest::{Client, StatusCode, multipart::{Multipart, Part}};
-use bytes::Bytes
+use bytes::Bytes;
 use std::io::Cursor;
 use telegraph_rs::{html_to_node, Telegraph};
 use teloxide::prelude::*;
