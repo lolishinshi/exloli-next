@@ -5,7 +5,7 @@ use anyhow::{anyhow, bail, Result};
 use chrono::{Datelike, Utc};
 use futures::StreamExt;
 use regex::Regex;
-use reqwest::{Client, StatusCode, multipart::{Multipart, Part}};
+use reqwest::{Client, StatusCode, multipart::{Form, Part}};
 use bytes::Bytes;
 use std::io::Cursor;
 use telegraph_rs::{html_to_node, Telegraph};
@@ -82,7 +82,7 @@ impl ExloliUploader {
 
     /// 检查指定画廊是否已经上传，如果没有则进行上传
     ///
-    /// 为了避免绕晕自己，这次不考虑父子画廊，只要 id 不同就视为新画廊，只要是新画廊就进行上传
+    /// 为了避免绕晕自己，这次不考虑父子画廊，只要 id 同就视为新画廊，只要是新画廊就进行上传
     #[tracing::instrument(skip(self))]
     pub async fn try_upload(&self, gallery: &EhGalleryUrl, check: bool) -> Result<()> {
         if check
@@ -216,7 +216,7 @@ async fn upload_gallery_image(&self, gallery: &EhGallery) -> Result<()> {
         .in_current_span(),
     );
 
-    // 依次将图片下载并上传到指定 API，并插入 ImageEntity 和 PageEntity 记录
+    // 依次将图片下载并上传到指定 API并插入 ImageEntity 和 PageEntity 记录
     let client = Client::builder()
         .timeout(Duration::from_secs(30))
         .connect_timeout(Duration::from_secs(30))
@@ -233,13 +233,14 @@ async fn upload_gallery_image(&self, gallery: &EhGallery) -> Result<()> {
                 debug!("已下载: {}", page.page());
 
                 // 上传到指定 API
-                let mut multipart = Multipart::new();
-                multipart = multipart.text("key", &self.api_key)
-                                    .text("action", "upload")
-                                    .text("action", "upload");
-                                    .part("source", Part::from_reader(Cursor::new(bytes), Bytes::from(bytes).into()));
+                let form = Form::new()
+                    .text("key", &self.config.imgbb.api_key)
+                    .text("action", "upload")
+                    .part("source", Part::stream(Bytes::from(bytes))
+                        .file_name(filename)
+                        .mime_str("image/jpeg")?);
 
-                let response = client.post("https://zh-cn.imgbb.com/json")
+                let response = client.post("https://api.imgbb.com/1/upload")
                     .multipart(form)
                     .send()
                     .await?;
