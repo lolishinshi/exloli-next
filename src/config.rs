@@ -23,6 +23,7 @@ pub struct Config {
     pub telegraph: Telegraph,
     pub telegram: Telegram,
     pub s3: S3,
+    pub imgbb: ImgbbConfig,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -75,6 +76,12 @@ pub struct S3 {
     pub secret_key: String,
     /// 公开访问连接
     pub host: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct ImgbbConfig {
+    pub api_key: String,
+    pub proxy_url: String,
 }
 
 impl Config {
