@@ -1,16 +1,33 @@
-FROM rust:bullseye as builder
+FROM rust:bullseye AS builder
 
 WORKDIR /app
 
-# 缓存依赖，提高构建速度
-RUN mkdir src && echo 'fn main() {}' > src/main.rs
-COPY Cargo.toml .
-COPY Cargo.lock .
-RUN cargo build --target-dir=target --release
-RUN if [ -f src/main.rs ]; then rm src/main.rs; fi
+# 复制 Cargo.toml 和 Cargo.lock
+COPY Cargo.toml Cargo.lock ./
 
-COPY . .
-RUN cargo install --target-dir=target  --bin=exloli --path .
+# 创建一个虚拟的 main.rs 文件来构建依赖
+RUN mkdir src && echo "fn main() {}" > src/main.rs
+
+# 构建依赖
+RUN cargo build --target-dir=target --release
+
+# 删除虚拟的 main.rs 和构建的可执行文件
+RUN rm src/main.rs && rm target/release/deps/exloli*
+
+# 现在复制实际的源代码
+COPY src ./src
+
+# 显示项目结构
+RUN ls -la
+
+# 显示 Cargo.toml 内容
+RUN cat Cargo.toml
+
+# 显示 Rust 和 Cargo 版本
+RUN rustc --version && cargo --version
+
+# 尝试构建项目，并输出详细信息
+RUN cargo build --target-dir=target --release --verbose
 
 FROM debian:bullseye-slim
 ENV RUST_BACKTRACE=full
