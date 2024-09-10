@@ -13,14 +13,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build Rust Project
-        run: |
-          cargo build --release
-
-      - name: Run Rust Application
-        run: |
-          cargo run --release
-
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -36,27 +28,13 @@ jobs:
       - name: Generate timestamp and random string tag
         id: tag
         run: |
-          # 生成随机字符串
           RANDOM_STRING=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 6 | head -n 1)
-          # 输出随机字符串以供调试
-          echo "Generated Random String: $RANDOM_STRING"
-
-          # 生成基于年月日的标签
           TIMESTAMP_TAG=$(date +'%Y%m%d')
-          # 输出年月日标签以供调试
-          echo "Generated Timestamp Tag: $TIMESTAMP_TAG"
-
-          # 组合最终的标签
           FINAL_TAG="$TIMESTAMP_TAG-$RANDOM_STRING"
-          # 输出最终标签以供调试
-          echo "Final Tag: $FINAL_TAG"
-
-          # 将最终标签保存到 GITHUB_OUTPUT
           echo "TAG=$FINAL_TAG" >> $GITHUB_OUTPUT
         shell: bash
 
       - name: Build and push Docker image
-        id: build-and-push
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -67,8 +45,4 @@ jobs:
           cache-from: type=gha,scope=${{ github.workflow }}
           cache-to: type=gha,mode=max,scope=${{ github.workflow }}
 
-      - name: Check build output
-        run: |
-          echo "Image digest: ${{ steps.build-and-push.outputs.digest }}"
-          echo "Image size: ${{ steps.build-and-push.outputs.size }}"
-          echo "Image ID: ${{ steps.build-and-push.outputs.image-id }}"
+      # 其他步骤...
