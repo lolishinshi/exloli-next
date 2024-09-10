@@ -24,6 +24,7 @@ use crate::ehentai::{EhClient, EhGallery, EhGalleryUrl, GalleryInfo};
 use crate::tags::EhTagTransDB;
 use crate::utils::pad_left;
 
+#[derive(Debug, Clone)]
 pub struct ExloliUploader {
     ehentai: EhClient,
     telegraph: Telegraph,
@@ -35,7 +36,7 @@ pub struct ExloliUploader {
 
 impl ExloliUploader {
     pub async fn new(
-        mut config: Config,
+        config: Config,
         ehentai: EhClient,
         bot: Bot,
         trans: EhTagTransDB,
@@ -45,16 +46,13 @@ impl ExloliUploader {
             .access_token(&config.telegraph.access_token)
             .create()
             .await?;
-        
-        let api_key = std::mem::take(&mut config.imgbb.api_key);
-        
         Ok(Self {
             ehentai,
             config,
             telegraph,
             bot,
             trans,
-            api_key,
+            imgbb,
         })
     }
 
