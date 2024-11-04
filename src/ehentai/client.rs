@@ -94,7 +94,7 @@ impl EhClient {
         }
 
         let next = html
-            .select_attr("a#unext", "href")
+            .select_attr("a#dnext", "href")
             .and_then(|s| s.rsplit('=').next().map(|s| s.to_string()));
 
         Ok((ret, next))
@@ -194,7 +194,7 @@ impl EhClient {
             let pages = html.select_attrs("div#gdt a", "href");
 
             // 下一页的 URL
-            let next_page = html.select_attr("table.ptt td:last-child a", "href");
+            let next_page = html.select_attr("table.ptb td:last-child a", "href");
 
             (title, title_jp, parent, tags, favorite, pages, posted, next_page)
         };
@@ -203,8 +203,10 @@ impl EhClient {
             debug!(next_page_url);
             let resp = send!(self.0.get(next_page_url))?;
             let html = Html::parse_document(&resp.text().await?);
-            pages.extend(html.select_attrs("div.gdtl a", "href"));
-            next_page = html.select_attr("table.ptt td:last-child a", "href");
+            // 每一页的 URL
+            pages.extend(html.select_attrs("div#gdt a", "href"));
+            // 下一页的 URL
+            next_page = html.select_attr("table.ptb td:last-child a", "href");
         }
 
         let pages = pages.into_iter().map(|s| s.parse()).collect::<Result<Vec<_>>>()?;
