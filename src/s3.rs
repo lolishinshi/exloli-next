@@ -26,6 +26,8 @@ impl S3Uploader {
             "image/jpeg"
         } else if name.ends_with(".png") {
             "image/png"
+        } else if name.ends_with(".webp") {
+            "image/webp"
         } else {
             unreachable!()
         };
