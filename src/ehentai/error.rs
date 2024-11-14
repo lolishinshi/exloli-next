@@ -12,4 +12,6 @@ pub enum EhError {
     JoinError(#[from] tokio::task::JoinError),
     #[error("datetime error: {0}")]
     DateTimeError(#[from] chrono::format::ParseError),
+    #[error("h@h url broken: {0}")]
+    HaHUrlBroken(String),
 }

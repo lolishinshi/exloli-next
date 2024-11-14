@@ -70,11 +70,20 @@ pub struct EhPageUrl {
     hash: String,
     gallery_id: i32,
     page: i32,
+    nl: Option<String>,
 }
 
 impl EhPageUrl {
     pub fn url(&self) -> String {
-        format!("https://exhentai.org/s/{}/{}-{}", self.hash, self.gallery_id, self.page)
+        match &self.nl {
+            None => {
+                format!("https://exhentai.org/s/{}/{}-{}", self.hash, self.gallery_id, self.page)
+            }
+            Some(nl) => format!(
+                "https://exhentai.org/s/{}/{}-{}?nl={}",
+                self.hash, self.gallery_id, self.page, nl
+            ),
+        }
     }
 
     /// 页面哈希，实际上就是图片哈希的前十位
@@ -90,6 +99,15 @@ impl EhPageUrl {
     /// 页码
     pub fn page(&self) -> i32 {
         self.page
+    }
+
+    pub fn with_nl(&self, nl: &str) -> Self {
+        EhPageUrl {
+            hash: self.hash.clone(),
+            gallery_id: self.gallery_id,
+            page: self.page,
+            nl: Some(nl.to_owned()),
+        }
     }
 }
 
@@ -107,7 +125,7 @@ impl FromStr for EhPageUrl {
         let gallery_id = captures.name("id").and_then(|s| s.as_str().parse().ok()).unwrap();
         let page = captures.name("page").and_then(|s| s.as_str().parse().ok()).unwrap();
 
-        Ok(Self { hash: hash.to_owned(), gallery_id, page })
+        Ok(Self { hash: hash.to_owned(), gallery_id, page, nl: None })
     }
 }
 

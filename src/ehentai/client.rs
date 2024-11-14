@@ -1,6 +1,3 @@
-use std::fmt::Debug;
-use std::time::Duration;
-
 use chrono::prelude::*;
 use futures::prelude::*;
 use indexmap::IndexMap;
@@ -10,6 +7,8 @@ use reqwest::header::*;
 use reqwest::Client;
 use scraper::{Html, Selector};
 use serde::Serialize;
+use std::fmt::Debug;
+use std::time::Duration;
 use tracing::{debug, error, info, Instrument};
 
 use super::error::*;
@@ -227,22 +226,28 @@ impl EhClient {
         })
     }
 
-    /// 获取画廊的某一页的图片的 fileindex 和实际地址
+    /// 获取画廊的某一页的图片的 fileindex 和实际地址和 nl
     #[tracing::instrument(skip(self))]
     pub async fn get_image_url(&self, page: &EhPageUrl) -> Result<(u32, String)> {
-        let resp = send!(self.0.get(page.url()))?;
-        let html = Html::parse_document(&resp.text().await?);
-        let url = html.select_attr("img#img", "src").unwrap();
-        let fileindex = extract_fileindex(&url).unwrap();
-        Ok((fileindex, url))
-    }
+        let resp = send!(self.0.get(&page.url()))?;
+        let (url, nl, fileindex) = {
+            let html = Html::parse_document(&resp.text().await?);
+            let url = html.select_attr("img#img", "src").unwrap();
+            let nl = html.select_attr("img#img", "onerror").and_then(extract_nl);
+            let fileindex = extract_fileindex(&url).unwrap();
+            (url, nl, fileindex)
+        };
 
-    /// 获取画廊的某一页的图片的 fileindex 和字节流
-    #[tracing::instrument(skip(self))]
-    pub async fn get_image_bytes(&self, page: &EhPageUrl) -> Result<(u32, Vec<u8>)> {
-        let (fileindex, url) = self.get_image_url(page).await?;
-        let resp = send!(self.0.get(url))?;
-        Ok((fileindex, resp.bytes().await?.to_vec()))
+        return if send!(self.0.head(&url)).is_ok() {
+            Ok((fileindex, url))
+        } else if nl.is_some() {
+            let resp = send!(self.0.get(&page.with_nl(&nl.unwrap()).url()))?;
+            let html = Html::parse_document(&resp.text().await?);
+            let url = html.select_attr("img#img", "src").unwrap();
+            Ok((fileindex, url))
+        } else {
+            Err(EhError::HaHUrlBroken(url))
+        };
     }
 }
 
@@ -251,4 +256,10 @@ fn extract_fileindex(url: &str) -> Option<u32> {
     let captures = RE.captures(url)?;
     let fileindex = captures.name("fileindex")?.as_str().parse().ok()?;
     Some(fileindex)
+}
+
+fn extract_nl(onerror: String) -> Option<String> {
+    static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"nl\('(?P<nl>.+)'\)").unwrap());
+    let captures = RE.captures(&onerror)?;
+    Some(captures.name("nl")?.as_str().to_string())
 }
