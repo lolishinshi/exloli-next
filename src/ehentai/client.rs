@@ -252,8 +252,9 @@ impl EhClient {
 }
 
 fn extract_fileindex(url: &str) -> Option<u32> {
-    static RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"fileindex=(?P<fileindex>\d+)").unwrap());
-    let captures = RE.captures(url)?;
+    static RE1: Lazy<Regex> = Lazy::new(|| Regex::new(r"fileindex=(?P<fileindex>\d+)").unwrap());
+    static RE2: Lazy<Regex> = Lazy::new(|| Regex::new(r"/om/(?P<fileindex>\d+)/").unwrap());
+    let captures = RE1.captures(url).or_else(|| RE2.captures(url))?;
     let fileindex = captures.name("fileindex")?.as_str().parse().ok()?;
     Some(fileindex)
 }
